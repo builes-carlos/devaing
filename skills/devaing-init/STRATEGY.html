@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>devaing — Framework</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+    .tab-btn.active { background: #4f46e5; color: white; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+<header class="border-b border-gray-800 bg-gray-900 sticky top-0 z-50">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl font-black tracking-tight text-indigo-400">devaing</span>
+      <span class="text-gray-500 text-sm">dev + AI + ing</span>
+    </div>
+    <nav class="flex gap-1">
+      <button onclick="showSection('foundations')" class="nav-btn px-3 py-1.5 rounded text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Foundations</button>
+      <button onclick="showSection('overview')" class="nav-btn px-3 py-1.5 rounded text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Framework</button>
+      <button onclick="showSection('skills')" class="nav-btn px-3 py-1.5 rounded text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Skills</button>
+      <button onclick="showSection('flows')" class="nav-btn px-3 py-1.5 rounded text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Flows</button>
+      <button onclick="showSection('reference')" class="nav-btn px-3 py-1.5 rounded text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors">Reference</button>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-10">
+
+<!-- FOUNDATIONS -->
+<section id="section-foundations" class="hidden space-y-10">
+
+  <div class="space-y-2">
+    <h1 class="text-3xl font-black text-white">Why devaing exists</h1>
+    <p class="text-gray-400 max-w-2xl">The framework is a deliberate synthesis of specific ideas applied to a specific context. This section documents the sources, what was taken from each, and the selection criteria.</p>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+    <h2 class="text-lg font-bold text-white">The core problem</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-red-950/40 border border-red-800/50 rounded-lg p-4">
+        <p class="font-semibold text-red-300 mb-2">Vibe coding</p>
+        <p class="text-sm text-gray-300">Feels like magic: instant software from natural language. But the result is accumulated technical debt with no structure, no institutional memory, and no way to collaborate beyond the current session. The agent doesn't know what it built yesterday.</p>
+        <p class="text-xs text-gray-500 mt-3">Core problem: no context rationalization between sessions.</p>
+      </div>
+      <div class="bg-yellow-950/40 border border-yellow-800/50 rounded-lg p-4">
+        <p class="font-semibold text-yellow-300 mb-2">Heavy process (Jira + PRDs + specs)</p>
+        <p class="text-sm text-gray-300">Designed for human coordination in large teams. Produces artifacts nobody reads, duplicates information that drifts from the code, and burns more tokens on coordination than on building. Doesn't scale down to 1-3 person teams.</p>
+        <p class="text-xs text-gray-500 mt-3">Core problem: overhead designed for teams of 20, applied to teams of 1.</p>
+      </div>
+    </div>
+    <div class="bg-indigo-950/50 border border-indigo-700/50 rounded-lg p-4">
+      <p class="font-semibold text-indigo-300 mb-1">The devaing thesis</p>
+      <p class="text-sm text-gray-300">GitHub Issues is not bureaucracy. It is a <strong class="text-white">token rationalization system</strong>: it enables granular work (one session per issue), parallel collaboration (multiple agents or people taking different issues), and gives agents enough context to execute without re-explaining from scratch. The overhead that gets eliminated is human coordination. What stays is context continuity between sessions.</p>
+    </div>
+  </div>
+
+  <!-- Architecture layer -->
+  <div class="bg-gray-900 border border-indigo-800/60 rounded-xl p-6 space-y-4">
+    <h2 class="text-lg font-bold text-white">The abstraction layer</h2>
+    <p class="text-gray-300">devaing skills are <strong class="text-white">abstract classes</strong>: stable contracts with swappable implementations.</p>
+    <div class="bg-gray-800 rounded-lg p-4 font-mono text-sm space-y-1">
+      <p><span class="text-indigo-400">AGENTS.md / CLAUDE.md</span>  <span class="text-gray-500">→ interface: stable, never changes</span></p>
+      <p><span class="text-green-400">devaing skills</span>           <span class="text-gray-500">→ concrete class: your code, you update it</span></p>
+      <p><span class="text-yellow-400">ce-work, grill-me, etc.</span> <span class="text-gray-500">→ dependencies: used internally, invisible outside</span></p>
+    </div>
+    <p class="text-sm text-gray-400">AGENTS.md says <code class="text-indigo-400">/devaing-work</code>. It doesn't know what's inside. If tomorrow something better than ce-work appears, you update the skill's SKILL.md. Nobody who calls <code class="text-indigo-400">/devaing-work</code> notices. The contract is fulfilled the same way.</p>
+    <p class="text-sm text-gray-400">This is why devaing skills must not modify third-party skills directly. You own your abstraction layer; they own their implementations. If the methodology changes, you update the skill, not AGENTS.md.</p>
+  </div>
+
+  <!-- Sources -->
+  <div class="space-y-4">
+    <h2 class="text-xl font-bold text-white">Sources and selection criteria</h2>
+    <p class="text-gray-400 text-sm">General criterion: take what reduces friction for 1-3 person teams working with agents. Drop what exists to coordinate humans in large organizations.</p>
+
+    <!-- Pocock -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="bg-gray-800/60 px-6 py-3 flex items-center gap-3">
+        <span class="text-lg">📐</span>
+        <div>
+          <span class="font-bold text-white">Matt Pocock</span>
+          <span class="text-gray-400 text-sm ml-2">— structured agent development methodology for teams</span>
+        </div>
+      </div>
+      <div class="px-6 py-5 grid grid-cols-2 gap-6">
+        <div>
+          <p class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Taken</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>GitHub Issues as the atomic unit of work. One issue = one isolated worktree = one agent session. Eliminates shared context problems, enables real parallelism.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Canonical triage labels. Agents filter their own work without human intervention.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Post-implementation ADRs for non-obvious decisions. Not planned upfront — documented after, when the trade-off is actually known.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Vertical slices: each issue describes end-to-end behavior, not layers. UI + logic + tests as one unit.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Compound Engineering as the execution layer (ce-work, ce-frontend-design, reviewers). No reinventing the implementation wheel.</span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Dropped and why</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>PRDs as living artifacts. In Pocock, the PRD is the team's source of truth. For a solo builder it's an intermediary that drifts from the code. Replaced by CONTEXT.md + issues with acceptance criteria.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Extensive quiz loops before generating issues. Pocock confirms every decision with the human. For speed, devaing validates only two points: domain discovery (grill-me) and the epic list. The rest the agent decides.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>One PRD per epic. Produces 80k+ token sessions before writing a line of code. Replaced by direct issue generation from grill-me context — or progressive slice creation as work proceeds.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- gstack -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="bg-gray-800/60 px-6 py-3 flex items-center gap-3">
+        <span class="text-lg">⚡</span>
+        <div>
+          <span class="font-bold text-white">gstack (Garry Tan / YC)</span>
+          <span class="text-gray-400 text-sm ml-2">— role fragmentation for solo founders, feed-forward pipeline</span>
+        </div>
+      </div>
+      <div class="px-6 py-5 grid grid-cols-2 gap-6">
+        <div>
+          <p class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Taken</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Feed-forward pipeline: each step writes artifacts the next consumes. grill-me → CONTEXT.md → epics → issues → ce-work → CONTEXT.md update. No step starts cold.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Role chaining via CE: ce-frontend-design (designer), ce-work (engineer), ce-code-review (reviewer). The founder plays all roles through specialized skills, not manually context-switching.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Prototype before committing to UI. Validates navigation flow before generating issues. In devaing: prototype survives as a living skeleton, not deleted after validation.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Checkpoint/context-restore concept → adapted as mid-flight session recovery in devaing-work. If a session dies, the next invocation detects the orphaned branch and resumes.</span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Dropped and why</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Taste learning (GBrain): persists which design variants the user prefers with weekly decay. Interesting but CONTEXT.md + memory system already cover the relevant part for devaing's scope.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Multi-model validation (/codex): same code sent to OpenAI for cross-vendor check. devaing's target is speed, not redundancy.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Safety gates (/freeze, /careful): devaing-work already verifies blockers before executing, which covers the most common destructive scenario.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- GSD -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="bg-gray-800/60 px-6 py-3 flex items-center gap-3">
+        <span class="text-lg">🧠</span>
+        <div>
+          <span class="font-bold text-white">GSD — get-shit-done (gsd-build/TACHES)</span>
+          <span class="text-gray-400 text-sm ml-2">— context rot prevention, isolated subagents per task</span>
+        </div>
+      </div>
+      <div class="px-6 py-5 grid grid-cols-2 gap-6">
+        <div>
+          <p class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Taken</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Context rot model: 0-30% context = peak quality, 50%+ = model rushes, 70%+ = hallucinations and dropped requirements. Every architectural decision in the build loop traces back to this.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Progressive working mode: don't generate the full backlog before building. Issues emerge as work proceeds, keeping the init session lean. The reason is context rot, not preference.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Context budget warning in devaing-work: before dispatching to ce-work, if the session is already loaded from prior slices, warn the user and recommend a fresh session.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Fresh session suggestion after each closed slice: the implementation context of one slice contaminates the next. Each slice runs better in a clean 200k token window.</span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Dropped and why</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Autonomous next-step detection (/gsd-progress --next): devaing requires the human to pick the milestone. Deliberate — solo builders want control over what gets built next, not full autonomy.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Separate REQUIREMENTS.md, STATE.md, ROADMAP.md: GSD splits state into four files. devaing unifies in CONTEXT.md + GitHub Issues. Less surface area, same information.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compound Engineering -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="bg-gray-800/60 px-6 py-3 flex items-center gap-3">
+        <span class="text-lg">🤖</span>
+        <div>
+          <span class="font-bold text-white">Compound Engineering</span>
+          <span class="text-gray-400 text-sm ml-2">— framework-agnostic execution layer for code agents</span>
+        </div>
+      </div>
+      <div class="px-6 py-5 grid grid-cols-2 gap-6">
+        <div>
+          <p class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-2">Taken</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>ce-work as implementation engine: isolated worktree, TDD, PR, CI, merge. devaing wraps it with CONTEXT.md updates and ADR management.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>ce-frontend-design for UI issues: visual quality implementation verified via screenshots, iterating until expected behavior is met.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>Specialized reviewers (ce-code-review, /ultrareview) as quality gate before merge, run in fresh context to avoid confirmation bias.</span></li>
+            <li class="flex gap-2"><span class="text-green-400 shrink-0">✓</span><span>/improve-codebase-architecture every 2-3 milestones: detects drift between the emergent architecture and what was planned. Real systems never evolve exactly as designed.</span></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Dropped and why</p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Modifying third-party skills to adapt them. Version dependency becomes fragile and maintenance bifurcates. devaing invokes skills as-is; orchestration logic lives in devaing skills.</span></li>
+            <li class="flex gap-2"><span class="text-red-400 shrink-0">✗</span><span>Running reviewers in the same implementation context. CE reviewers are designed for fresh context — running them in the same worktree defeats the purpose of independent peer review.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Synthesis -->
+  <div class="bg-gray-900 border border-indigo-800/60 rounded-xl p-6 space-y-4">
+    <h2 class="text-lg font-bold text-white">The synthesis</h2>
+    <div class="grid grid-cols-3 gap-4 text-center text-sm">
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-indigo-300 font-semibold mb-1">From Pocock</p>
+        <p class="text-gray-400">The structure: atomic issues, isolated worktrees, ADRs, Compound Engineering</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-yellow-300 font-semibold mb-1">From Gary Tan / YC</p>
+        <p class="text-gray-400">The speed: bias for action, minimal human validations, real QA on real features</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-green-300 font-semibold mb-1">Original to devaing</p>
+        <p class="text-gray-400">CONTEXT.md as persistent memory between sessions. grill-me as a single domain discovery investment. Mandatory admin panel. Prototype as a living skeleton.</p>
+      </div>
+    </div>
+    <p class="text-gray-400 text-sm pt-2">The cut criterion in every decision was always the same: <strong class="text-white">does this reduce tokens consumed before producing working software, or does it increase them?</strong> Everything that increases them without direct product value was removed.</p>
+  </div>
+
+  <!-- When NOT to use -->
+  <div class="bg-gray-900 border border-yellow-800/40 rounded-xl p-6">
+    <h2 class="text-lg font-bold text-yellow-400 mb-3">When NOT to use devaing</h2>
+    <ul class="space-y-2 text-sm text-gray-300">
+      <li class="flex gap-2"><span class="text-yellow-500 shrink-0">—</span><span><strong class="text-white">Large teams with dedicated PMs and designers:</strong> Pocock is the right choice. devaing assumes the same builder who writes the issue also validates the QA. With separate roles, the coordination overhead devaing eliminates is actually necessary.</span></li>
+      <li class="flex gap-2"><span class="text-yellow-500 shrink-0">—</span><span><strong class="text-white">Projects skipping grill-me:</strong> devaing without domain discovery is vibe coding with extra steps. The investment in grill-me is not optional — it's the foundation of everything that follows.</span></li>
+      <li class="flex gap-2"><span class="text-yellow-500 shrink-0">—</span><span><strong class="text-white">Regulated domains requiring formal audit trails:</strong> devaing ADRs are post-hoc and lightweight. If the domain requires decision traceability before implementation (fintech, healthcare, government), a more rigorous design process is needed.</span></li>
+    </ul>
+  </div>
+
+</section>
+
+<!-- FRAMEWORK OVERVIEW -->
+<section id="section-overview" class="space-y-10">
+
+  <div class="text-center space-y-4 py-8">
+    <h1 class="text-4xl font-black text-white">Hyper-agile framework for building products with AI</h1>
+    <p class="text-xl text-gray-400 max-w-2xl mx-auto">For solo builders, dev pairs, and early-stage startups who want product fast without heavy process.</p>
+    <div class="flex justify-center gap-3 mt-6">
+      <span class="bg-indigo-900/50 text-indigo-300 border border-indigo-700 px-4 py-1.5 rounded-full text-sm font-medium">Not Pocock (large teams)</span>
+      <span class="bg-indigo-900/50 text-indigo-300 border border-indigo-700 px-4 py-1.5 rounded-full text-sm font-medium">Not vibe coding (no structure)</span>
+      <span class="bg-green-900/50 text-green-300 border border-green-700 px-4 py-1.5 rounded-full text-sm font-medium">The middle path</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('init')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">🚀</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-init</code>
+          <p class="text-gray-400 text-sm mt-1">One-time project setup: repo, AGENTS.md, .devaing.md, CI, CONTEXT.md. Then kicks off Phase 1 via /devaing-phase.</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('phase')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">📅</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-phase</code>
+          <p class="text-gray-400 text-sm mt-1">Kick off a phase. Verifies previous phase closed, runs discovery, defines epics, builds/extends prototype, generates all issues.</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('phase-revise')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✏️</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-phase-revise</code>
+          <p class="text-gray-400 text-sm mt-1">Adjust the current phase before or during implementation: scope, prototype screens, business logic.</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('work')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">⚙️</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-work</code>
+          <p class="text-gray-400 text-sm mt-1">Implement a task end-to-end. Detects phase completion when last issue closes — prompts QA and /devaing-phase for next phase.</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('bug')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">🐛</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-bug</code>
+          <p class="text-gray-400 text-sm mt-1">Natural language → structured issue with diagnosis. For implemented product only.</p>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 cursor-pointer hover:border-indigo-600 transition-colors" onclick="showSection('skills'); showSkill('feature')">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">✨</span>
+        <div>
+          <code class="text-indigo-400 font-bold">/devaing-feature</code>
+          <p class="text-gray-400 text-sm mt-1">New feature area mid-phase. Creates milestone, generates issues, updates CONTEXT.md.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h2 class="text-xl font-bold text-white mb-4">Key design decisions</h2>
+    <div class="space-y-3">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-red-400 text-xl mt-0.5">✗</span>
+        <div>
+          <p class="font-semibold text-white">No PRDs</p>
+          <p class="text-gray-400 text-sm">PRDs are expensive intermediaries nobody reads. Issues with acceptance criteria are the spec. ADRs capture non-obvious decisions post-implementation.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-red-400 text-xl mt-0.5">✗</span>
+        <div>
+          <p class="font-semibold text-white">No quiz loops</p>
+          <p class="text-gray-400 text-sm">Only 2 human validations in devaing-init: grill-me (domain) and epic list approval. Everything else the agent decides without asking.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">Phase lifecycle — not a flat backlog</p>
+          <p class="text-gray-400 text-sm">A project has phases (MVP, Beta, V2…). <code class="text-indigo-400">/devaing-init</code> runs once for setup, then calls <code class="text-indigo-400">/devaing-phase</code> for Phase 1. Subsequent phases are started manually after the previous one closes. <code class="text-indigo-400">/devaing-phase</code> is blocked while any issue in the current phase is open — enforced automatically.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">Two upfront questions (per phase)</p>
+          <p class="text-gray-400 text-sm">Each phase asks: (1) <strong class="text-white">Granularity</strong> — Broad (2-4 slices/epic), Balanced (3-6), Detailed (6-12). (2) <strong class="text-white">Tracking</strong> — GitHub or Local (BACKLOG.md). Granularity can differ between phases — Broad for MVP, Detailed for a compliance-sensitive Phase 2.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">Prototype as a living skeleton</p>
+          <p class="text-gray-400 text-sm">UI prototypes are not deleted after UX validation. They survive as navigation skeletons. Each devaing-work slice replaces one mock screen with real implementation. The rest of the prototype stays intact as scaffolding for future slices.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">Milestones = epics</p>
+          <p class="text-gray-400 text-sm">GitHub milestones group issues by epic. The human navigates by milestone, not flat list. Direct correlation with what was seen in discovery.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">CONTEXT.md as single source of truth</p>
+          <p class="text-gray-400 text-sm">Updated after every operation. Never stale because it grows with the product. Includes glossary, architecture, constraints, epics, and UX conventions.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-4">
+        <span class="text-green-400 text-xl mt-0.5">✓</span>
+        <div>
+          <p class="font-semibold text-white">Mandatory admin panel</p>
+          <p class="text-gray-400 text-sm">Every project must have an admin panel epic, even if the user didn't mention it. Guarantees all system configuration lives in the DB, never hardcoded.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- SKILLS -->
+<section id="section-skills" class="hidden space-y-6">
+
+  <div class="flex gap-2 border-b border-gray-800 pb-4 flex-wrap">
+    <button onclick="showSkill('init')" id="tab-init" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-init</button>
+    <button onclick="showSkill('phase')" id="tab-phase" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-phase</button>
+    <button onclick="showSkill('phase-revise')" id="tab-phase-revise" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-phase-revise</button>
+    <button onclick="showSkill('work')" id="tab-work" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-work</button>
+    <button onclick="showSkill('bug')" id="tab-bug" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-bug</button>
+    <button onclick="showSkill('feature')" id="tab-feature" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white transition-colors">/devaing-feature</button>
+  </div>
+
+  <!-- devaing-init -->
+  <div id="skill-init" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🚀</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-init</h2>
+        <p class="text-gray-400">Initialize a new project with the full devaing setup.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm">
+      <code class="text-indigo-400">/devaing-init &lt;name&gt;</code>
+      <span class="text-gray-500 ml-3">or</span>
+      <code class="text-indigo-400 ml-3">/devaing-init</code>
+      <span class="text-gray-500 ml-2">(uses current directory name)</span>
+    </div>
+
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <h3 class="font-semibold text-gray-200 mb-3">Steps</h3>
+        <div class="space-y-2">
+          <div class="flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">0</span><p class="text-sm text-gray-300"><strong>Two upfront questions</strong> — Granularity (Broad / Balanced / Detailed) and Tracking (Local / GitHub). Then name resolution, auth check (GitHub only), state detection matrix, create/clone repo if needed.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">1</span><p class="text-sm text-gray-300"><strong>Detect current branch</strong></p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">2</span><p class="text-sm text-gray-300"><strong>AGENTS.md</strong> — devaing workflow conventions. References skills by name only, no implementation details.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">3</span><p class="text-sm text-gray-300"><strong>docs/agents/</strong> — issue-tracker.md, triage-labels.md, domain.md.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">4</span><p class="text-sm text-gray-300"><strong>GitHub labels</strong> — needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">5</span><p class="text-sm text-gray-300"><strong>Compound Engineering plugin</strong></p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">6</span><p class="text-sm text-gray-300"><strong>CI workflow</strong> — .github/workflows/ci.yml</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">7</span><p class="text-sm text-gray-300"><strong>CONTEXT.md</strong> — base structure.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">7b</span><p class="text-sm text-gray-300"><strong>.devaing.md</strong> — runtime-agnostic prose spec for all 6 skills. Readable by Codex or any other agent. AGENTS.md points here as fallback when Claude Code is not the runtime.</p></div>
+          <div class="flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">8</span><p class="text-sm text-gray-300"><strong>Commit and push</strong></p></div>
+          <div class="flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">8b</span><p class="text-sm text-gray-300"><strong>Phase state detection</strong> — if a phase is already In Progress, show available skills and stop. If fresh, proceed.</p></div>
+          <div class="flex gap-3"><span class="bg-purple-900 text-purple-300 text-xs px-2 py-0.5 rounded font-mono shrink-0 mt-0.5">8c</span><p class="text-sm text-gray-300"><strong>Kick off Phase 1</strong> — shows the user the command for future phases (<code class="text-indigo-400">/devaing-phase "name"</code>), then calls /devaing-phase internally. All discovery, epics, prototype, and issue generation happen inside /devaing-phase.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Granularity -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <h3 class="font-semibold text-gray-200 mb-3">Granularity (Step 0, Question 1)</h3>
+      <div class="space-y-3">
+        <div class="bg-gray-800 rounded-lg p-3">
+          <p class="font-medium text-green-300 text-sm">Broad — 2-4 slices/epic</p>
+          <p class="text-xs text-gray-400 mt-1">Each task covers a lot of ground. 2-3 high-level acceptance criteria. Move fast. Great for MVPs and exploring new ideas.</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+          <p class="font-medium text-yellow-300 text-sm">Balanced — 3-6 slices/epic</p>
+          <p class="text-xs text-gray-400 mt-1">One task = one concrete thing a user can do. 4-6 specific acceptance criteria. The natural middle ground for known-scope projects.</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+          <p class="font-medium text-red-300 text-sm">Detailed — 6-12 slices/epic</p>
+          <p class="text-xs text-gray-400 mt-1">Every edge case has its own task. Full acceptance criteria with negative paths. For projects where bugs have real consequences.</p>
+        </div>
+      </div>
+      <div class="mt-3 border-t border-gray-700 pt-3">
+        <p class="text-xs font-semibold text-gray-400 mb-2">Tracking (Question 2)</p>
+        <div class="flex gap-3">
+          <div class="bg-gray-800 rounded-lg p-2 flex-1 text-xs"><p class="font-medium text-indigo-300">GitHub</p><p class="text-gray-400 mt-0.5">Issues + milestones. Visibility, CI integration, collaboration.</p></div>
+          <div class="bg-gray-800 rounded-lg p-2 flex-1 text-xs"><p class="font-medium text-indigo-300">Local</p><p class="text-gray-400 mt-0.5">BACKLOG.md with checkboxes. No external accounts. Start immediately.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase state detection matrix -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+      <h3 class="font-semibold text-gray-200 mb-2">Phase state detection (Step 8b) — re-run behavior</h3>
+      <table class="text-xs w-full">
+        <thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left py-2 pr-3">## Phases in CONTEXT.md</th><th class="text-left py-2 pr-3">Open issues</th><th class="text-left py-2">Action</th></tr></thead>
+        <tbody class="text-gray-300">
+          <tr class="border-b border-gray-800"><td class="py-2 pr-3">Absent or empty (fresh project)</td><td class="py-2 pr-3">—</td><td class="py-2 text-indigo-400">Step 8c: show command, call /devaing-phase "Phase 1"</td></tr>
+          <tr class="border-b border-gray-800"><td class="py-2 pr-3">Phase "In Progress", 0 issues</td><td class="py-2 pr-3">0</td><td class="py-2 text-yellow-400">Phase kicked off, nothing built. Show state machine.</td></tr>
+          <tr class="border-b border-gray-800"><td class="py-2 pr-3">Phase "In Progress"</td><td class="py-2 pr-3">N open</td><td class="py-2 text-yellow-400">Active phase. Show state machine. /devaing-phase blocked.</td></tr>
+          <tr><td class="py-2 pr-3">All phases "Complete"</td><td class="py-2 pr-3">0</td><td class="py-2 text-green-400">/devaing-phase available for next phase.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- devaing-phase -->
+  <div id="skill-phase" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">📅</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-phase</h2>
+        <p class="text-gray-400">Kick off a new phase: discovery, epics, prototype, and all issues for the phase.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm">
+      <code class="text-indigo-400">/devaing-phase "Phase name"</code>
+      <span class="text-gray-500 ml-3">e.g. "MVP", "Beta", "Compliance V2"</span>
+    </div>
+
+    <div class="bg-yellow-950/40 border border-yellow-800/50 rounded-lg p-3 text-sm">
+      <p class="text-yellow-300 font-semibold mb-1">Blocked while a phase is open</p>
+      <p class="text-gray-300">Step 0 checks for any open issues in the current phase. If found, lists available skills and stops. Cannot start a new phase until all issues are closed.</p>
+    </div>
+
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-yellow-900 text-yellow-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">0</span><div><p class="font-medium text-gray-200">Phase gate</p><p class="text-sm text-gray-400 mt-1">Count open issues across all current-phase milestones. If &gt; 0: list available skills, stop. If 0: proceed.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1</span><div><p class="font-medium text-gray-200">Phase name + granularity</p><p class="text-sm text-gray-400 mt-1">Confirm phase name (passed as argument or asked). Ask granularity: Broad (2-4 slices/epic), Balanced (3-6), Detailed (6-12). Granularity can differ per phase.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">2</span><div><p class="font-medium text-gray-200">Read context</p><p class="text-sm text-gray-400 mt-1">Read CONTEXT.md completely. Read all open and closed issues from previous phases. Build a full picture of what was built, what is open, what was deferred.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-purple-900 text-purple-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">3</span><div><p class="font-medium text-gray-200">Model gate (upgrade)</p><p class="text-sm text-gray-400 mt-1">Suggest switching to a more capable model before discovery. Domain discovery is the highest-value step — context quality here propagates to every subsequent issue. Wait for user confirmation.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">4</span><div><p class="font-medium text-gray-200">Discovery</p>
+        <div class="mt-2 space-y-2">
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-indigo-300">Phase 1 (grill-me):</strong> full domain interview. Everything: problem, users, business model, competitors, what it does NOT do. Invite the user to add files, images, docs, screenshots. Let grill-me run its full loop.</div>
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-indigo-300">Phase 2+ (incremental):</strong> "Phase N-1 is done. Here's what we built. What's new? What changed since then?" Focused interview on deltas — new requirements, pivots, deferred backlog items now in scope.</div>
+        </div>
+      </div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">5</span><div><p class="font-medium text-gray-200">Update CONTEXT.md</p><p class="text-sm text-gray-400 mt-1">Populate or extend: Project, Domain glossary, Architecture, Key constraints. Also update <code>## Phases</code> table with new phase row (status: In Progress). Commit.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">6</span><div><p class="font-medium text-gray-200">Define epics</p>
+        <div class="mt-2 space-y-2">
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">Derive epics from the interview. Present list for approval — one validation checkpoint. Add any missing epics based on domain knowledge (auth, admin panel, notifications, etc.).</div>
+          <div class="bg-red-950/50 border border-red-800/50 rounded p-2 text-xs"><strong class="text-red-300">Admin panel rule:</strong> if admin panel is not in the user's list, add it automatically. Every product with a DB needs one. Let the user remove it — don't wait to be asked.</div>
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">Annotate next-phase backlog: epics identified in discovery but out of scope for this phase. Stored in <code>CONTEXT.md ## Next phase backlog</code>.</div>
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">Create GitHub milestones for each approved epic (GitHub mode) or BACKLOG.md sections (Local mode).</div>
+        </div>
+      </div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-green-900 text-green-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">7</span><div><p class="font-medium text-gray-200">Prototype</p>
+        <div class="mt-2 space-y-2">
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-gray-300">Phase 1:</strong> invoke /prototype for all UI epics. Creates a living navigation skeleton — never deleted.</div>
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-gray-300">Phase 2+:</strong> extend the existing skeleton with new screens for new epics. New screens are mocks. Previous screens (already implemented) are left intact.</div>
+          <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">Non-UI epics: skip prototype for those epics only.</div>
+        </div>
+      </div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-purple-900 text-purple-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">8</span><div><p class="font-medium text-gray-200">Model gate (downgrade)</p><p class="text-sm text-gray-400 mt-1">Suggest switching to a faster/cheaper model for issue generation. The creative work is done — issue generation is mechanical. Wait for user confirmation.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">9</span><div><p class="font-medium text-gray-200">Generate issues</p><p class="text-sm text-gray-400 mt-1">Create all issues for every epic, calibrated to the chosen granularity. Dependency order — infrastructure and auth slices first. Each issue: what to build, acceptance criteria, blocked by. Label: ready-for-agent or ready-for-human.</p></div></div>
+    </div>
+
+    <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 text-sm">
+      <p class="font-semibold text-gray-200 mb-2">Closing — state machine</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div><p class="text-xs font-semibold text-green-400 mb-1">Available now</p>
+          <ul class="space-y-1 text-xs text-gray-300"><li><code class="text-indigo-400">/devaing-phase-revise</code> — adjust scope, prototype, business logic</li><li><code class="text-indigo-400">/devaing-work #N</code> — implement a task</li><li><code class="text-indigo-400">/devaing-bug</code> — report a bug</li><li><code class="text-indigo-400">/devaing-feature</code> — add something not in the plan</li></ul>
+        </div>
+        <div><p class="text-xs font-semibold text-red-400 mb-1">Blocked</p>
+          <ul class="space-y-1 text-xs text-gray-300"><li><code class="text-indigo-400">/devaing-phase</code> — blocked until all current phase issues close</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- devaing-phase-revise -->
+  <div id="skill-phase-revise" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">✏️</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-phase-revise</h2>
+        <p class="text-gray-400">Adjust the current phase before or during implementation.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm">
+      <code class="text-indigo-400">/devaing-phase-revise</code>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-sm">
+      <p class="font-semibold text-gray-200 mb-1">When to use</p>
+      <ul class="space-y-1 text-xs text-gray-400">
+        <li>Prototype screen shows something that doesn't make sense</li>
+        <li>User forgot to mention a requirement during discovery</li>
+        <li>Business context changed since grill-me ran</li>
+        <li>An issue is wrong, missing, or should be cut</li>
+        <li>Not to be confused with /devaing-bug (for implemented product) or /devaing-feature (net-new area)</li>
+      </ul>
+    </div>
+
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-yellow-900 text-yellow-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">0</span><div><p class="font-medium text-gray-200">Verify phase is open</p><p class="text-sm text-gray-400 mt-1">Read CONTEXT.md ## Phases. Find phase with status "In Progress". If none: stop with guidance to run /devaing-phase. If implementation already started (closed issues exist): warn before continuing.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1</span><div><p class="font-medium text-gray-200">Read current state</p><p class="text-sm text-gray-400 mt-1">Read CONTEXT.md completely. Read all open and closed issues for the current phase milestones. Load the prototype if it exists.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">2</span><div><p class="font-medium text-gray-200">Understand what needs adjusting</p>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-gray-800 rounded p-2"><p class="text-gray-300 font-medium">Scope</p><p class="text-gray-400">Epics or issues that are wrong, missing, or should be cut</p></div>
+          <div class="bg-gray-800 rounded p-2"><p class="text-gray-300 font-medium">Prototype</p><p class="text-gray-400">Screens that don't make sense or need redesign</p></div>
+          <div class="bg-gray-800 rounded p-2"><p class="text-gray-300 font-medium">Business</p><p class="text-gray-400">Something that changed the plan since discovery</p></div>
+          <div class="bg-gray-800 rounded p-2"><p class="text-gray-300 font-medium">Multiple</p><p class="text-gray-400">Describe everything — skill handles all at once</p></div>
+        </div>
+      </div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">3</span><div><p class="font-medium text-gray-200">Make adjustments</p>
+        <div class="mt-2 space-y-1 text-xs text-gray-400">
+          <p><strong class="text-gray-300">Scope:</strong> add issue (gh issue create), remove issue (close with reason), modify issue (edit + comment).</p>
+          <p><strong class="text-gray-300">Prototype:</strong> invoke /prototype for affected screens only. Do not touch screens from previous phases or unrelated screens.</p>
+          <p><strong class="text-gray-300">Business logic:</strong> update relevant CONTEXT.md sections (glossary, architecture, constraints). Update open issues with a comment explaining the change.</p>
+        </div>
+      </div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">4</span><div><p class="font-medium text-gray-200">Confirm changes + commit</p><p class="text-sm text-gray-400 mt-1">Show summary: issues added, removed, modified; prototype screens revised; CONTEXT.md sections updated. Commit and push.</p></div></div>
+    </div>
+
+    <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 text-sm">
+      <p class="font-semibold text-gray-200 mb-2">Closing — state machine</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div><p class="text-xs font-semibold text-green-400 mb-1">Available now</p>
+          <ul class="space-y-1 text-xs text-gray-300"><li><code class="text-indigo-400">/devaing-phase-revise</code> — revise again if needed</li><li><code class="text-indigo-400">/devaing-work #N</code> — implement a task</li><li><code class="text-indigo-400">/devaing-bug</code> — report a bug</li><li><code class="text-indigo-400">/devaing-feature</code> — add something not in the plan</li></ul>
+        </div>
+        <div><p class="text-xs font-semibold text-red-400 mb-1">Blocked</p>
+          <ul class="space-y-1 text-xs text-gray-300"><li><code class="text-indigo-400">/devaing-phase</code> — blocked until all current phase issues close</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- devaing-feature -->
+  <div id="skill-feature" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">✨</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-feature</h2>
+        <p class="text-gray-400">Add a new feature area to an existing project.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm">
+      <code class="text-indigo-400">/devaing-feature "description"</code>
+    </div>
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1</span><div><p class="font-medium text-gray-200">Read CONTEXT.md</p><p class="text-sm text-gray-400 mt-1">Understand existing domain, architecture, constraints, and epics before anything else.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-indigo-900 text-indigo-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1b</span><div><p class="font-medium text-gray-200">Scope discovery (4 questions)</p><div class="mt-2 space-y-1 text-sm text-gray-400"><p>1. What problem does this feature solve for the user?</p><p>2. Who uses it and in what situation?</p><p>3. What is explicitly out of scope?</p><p>4. Are there technical or business constraints to respect?</p></div></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">2</span><div><p class="font-medium text-gray-200">Evaluate scope</p><p class="text-sm text-gray-400 mt-1">Does it fit an existing milestone or need a new one? One question if ambiguous.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">3</span><div><p class="font-medium text-gray-200">Create milestone if needed</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">4</span><div><p class="font-medium text-gray-200">Generate first slice</p><p class="text-sm text-gray-400 mt-1">Create the first unblocked issue derived from the feature description and CONTEXT.md. In dependency order. No quiz, no PRD.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">5</span><div><p class="font-medium text-gray-200">Update CONTEXT.md</p><p class="text-sm text-gray-400 mt-1">Only if the feature introduces new terms, components, or constraints not already documented.</p></div></div>
+    </div>
+  </div>
+
+  <!-- devaing-bug -->
+  <div id="skill-bug" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🐛</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-bug</h2>
+        <p class="text-gray-400">Convert a bug report into a structured, agent-ready issue.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm">
+      <code class="text-indigo-400">/devaing-bug "bug description"</code>
+    </div>
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1</span><div><p class="font-medium text-gray-200">Read context</p><p class="text-sm text-gray-400 mt-1">CONTEXT.md and the relevant code area related to the bug.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">2</span><div><p class="font-medium text-gray-200">Investigate</p><p class="text-sm text-gray-400 mt-1">Locate the code path, identify the probable root cause, determine what a correct fix looks like, identify how to verify it. If root cause is not obvious: invoke <code class="text-indigo-400">/diagnose</code>.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">3</span><div><p class="font-medium text-gray-200">Assign milestone</p><p class="text-sm text-gray-400 mt-1">Determine which epic this belongs to. One question if ambiguous.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">4</span><div><p class="font-medium text-gray-200">Create structured issue</p><div class="mt-2 text-sm text-gray-400 space-y-1"><p>• Observed behavior</p><p>• Expected behavior</p><p>• Steps to reproduce</p><p>• Diagnosis (probable root cause with relevant code)</p><p>• Proposed fix</p><p>• Acceptance criteria</p></div></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">5</span><div><p class="font-medium text-gray-200">Update CONTEXT.md</p><p class="text-sm text-gray-400 mt-1">Only if the bug reveals a constraint, edge case, or architectural behavior not yet documented.</p></div></div>
+    </div>
+  </div>
+
+  <!-- devaing-work -->
+  <div id="skill-work" class="tab-pane space-y-4">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">⚙️</span>
+      <div>
+        <h2 class="text-2xl font-bold text-white">/devaing-work</h2>
+        <p class="text-gray-400">Implement an issue end-to-end and keep CONTEXT.md alive.</p>
+      </div>
+    </div>
+    <div class="bg-gray-900 rounded-lg p-4 border border-gray-800 font-mono text-sm space-y-1">
+      <div><code class="text-indigo-400">/devaing-work #N</code> <span class="text-gray-500 ml-2">— takes a specific issue</span></div>
+      <div><code class="text-indigo-400">/devaing-work &lt;milestone&gt;</code> <span class="text-gray-500 ml-2">— determines and creates the next slice, then implements it</span></div>
+    </div>
+    <div class="space-y-2">
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+        <span class="bg-yellow-900 text-yellow-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">1</span>
+        <div>
+          <p class="font-medium text-gray-200">Detect mid-flight session <span class="text-xs text-yellow-400 ml-1">(from gstack checkpoint)</span></p>
+          <div class="mt-2 space-y-2">
+            <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-gray-300">GitHub mode:</strong> look for open issue in the milestone with an existing branch. If found: offer to resume.</div>
+            <div class="bg-gray-800 rounded p-2 text-xs text-gray-400"><strong class="text-gray-300">No-GitHub mode:</strong> look for unmerged branch matching the milestone slug. If found: offer to resume.</div>
+            <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">If no mid-flight found: determine next slice, create issue (GitHub mode) or name branch (no-GitHub mode), proceed.</div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+        <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">2</span>
+        <div>
+          <p class="font-medium text-gray-200">Resolve the issue</p>
+          <p class="text-xs text-gray-400 mt-1">If given <code>#N</code>: read the full issue, verify all blockers are closed. If given a milestone name: read closed issues and CONTEXT.md, create the next slice.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+        <span class="bg-red-900 text-red-300 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">3</span>
+        <div>
+          <p class="font-medium text-gray-200">Context budget check <span class="text-xs text-red-400 ml-1">(from GSD context rot model)</span></p>
+          <p class="text-xs text-gray-400 mt-1">If this is not the first slice of the session: warn the user that running ce-work in a loaded context degrades quality (50%+ = rushes, 70%+ = hallucinates). Recommend starting a fresh session. User confirms to continue.</p>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3">
+        <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">4</span>
+        <div>
+          <p class="font-medium text-gray-200">Route by type</p>
+          <div class="mt-2 space-y-2">
+            <div class="bg-indigo-950/50 border border-indigo-800/50 rounded p-3 text-sm">
+              <p class="font-medium text-indigo-300 text-xs mb-1">PROTOTYPE CHECK</p>
+              <p class="text-gray-400 text-xs">If a prototype exists and the issue involves UI: identify the corresponding screen. Pass it to ce-frontend-design as reference. Replace that mock with real implementation. Leave all other screens intact.</p>
+            </div>
+            <div class="bg-gray-800 rounded p-3 text-xs text-gray-400"><strong class="text-gray-300">UI issue:</strong> ce-frontend-design first (with prototype screen), then ce-work for remaining logic.</div>
+            <div class="bg-gray-800 rounded p-3 text-xs text-gray-400"><strong class="text-gray-300">Non-UI issue:</strong> ce-work directly.</div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">5</span><div><p class="font-medium text-gray-200">Update CONTEXT.md and ADRs</p><p class="text-sm text-gray-400 mt-1">After merge: evaluate changes in glossary, architecture, constraints. Ask about non-obvious decisions. If yes: create ADR in <code>docs/adr/NNNN-slug.md</code>. Also ask about known limitations left incomplete.</p></div></div>
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 flex gap-3"><span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded font-mono h-fit mt-0.5">6</span><div><p class="font-medium text-gray-200">Close the issue + phase completion check</p>
+        <div class="mt-2 space-y-2 text-xs text-gray-400">
+          <p>Close issue with PR reference. Check if this was the last open issue in its milestone.</p>
+          <div class="bg-gray-800 rounded p-2"><strong class="text-gray-300">Milestone closed, other milestones still open:</strong> show next milestone, suggest fresh session.</div>
+          <div class="bg-indigo-950/70 border border-indigo-800/50 rounded p-2"><strong class="text-indigo-300">ALL phase milestones at 0 open issues — phase complete:</strong> update CONTEXT.md ## Phases (In Progress → Complete), commit. Show QA prompt. Suggest <code class="text-indigo-400">/improve-codebase-architecture</code> every 2-3 phases. Show command for next phase: <code class="text-indigo-400">/devaing-phase "next-name"</code>.</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- FLOWS -->
+<section id="section-flows" class="hidden space-y-8">
+  <h2 class="text-xl font-bold text-white">Framework flows</h2>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-1"><span class="text-indigo-400">→</span> Project start (one-time)</h3>
+    <p class="text-xs text-gray-500 mb-4">devaing-init handles tech setup, then hands off to devaing-phase for all discovery, epics, prototype, and issues.</p>
+    <svg viewBox="0 0 960 120" class="w-full" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6366f1"/></marker></defs>
+      <!-- devaing-init box -->
+      <rect x="5" y="35" width="130" height="50" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="70" y="56" text-anchor="middle" fill="#a5b4fc" font-size="10" font-family="monospace">/devaing-init</text>
+      <text x="70" y="70" text-anchor="middle" fill="#818cf8" font-size="9">repo, AGENTS.md</text>
+      <text x="70" y="82" text-anchor="middle" fill="#818cf8" font-size="9">CI, CONTEXT.md</text>
+
+      <line x1="135" y1="60" x2="155" y2="60" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- devaing-phase box (bigger, shows internals) -->
+      <rect x="157" y="10" width="540" height="100" rx="8" fill="#1e1b4b" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="285" y="28" text-anchor="middle" fill="#c4b5fd" font-size="9">/devaing-phase "Phase 1"</text>
+
+      <rect x="168" y="35" width="80" height="40" rx="4" fill="#1a1040" stroke="#7c3aed" stroke-width="1"/>
+      <text x="208" y="53" text-anchor="middle" fill="#a78bfa" font-size="8">grill-me</text>
+      <text x="208" y="65" text-anchor="middle" fill="#7c3aed" font-size="7">✋ validation 1</text>
+
+      <rect x="258" y="35" width="80" height="40" rx="4" fill="#1a1040" stroke="#4f46e5" stroke-width="1"/>
+      <text x="298" y="53" text-anchor="middle" fill="#818cf8" font-size="8">CONTEXT.md</text>
+      <text x="298" y="65" text-anchor="middle" fill="#6366f1" font-size="7">populate</text>
+
+      <rect x="348" y="35" width="80" height="40" rx="4" fill="#1a1040" stroke="#7c3aed" stroke-width="1"/>
+      <text x="388" y="53" text-anchor="middle" fill="#a78bfa" font-size="8">epics</text>
+      <text x="388" y="65" text-anchor="middle" fill="#7c3aed" font-size="7">✋ validation 2</text>
+
+      <rect x="438" y="35" width="80" height="40" rx="4" fill="#1a1040" stroke="#059669" stroke-width="1"/>
+      <text x="478" y="53" text-anchor="middle" fill="#6ee7b7" font-size="8">prototype</text>
+      <text x="478" y="65" text-anchor="middle" fill="#34d399" font-size="7">living skeleton</text>
+
+      <rect x="528" y="35" width="80" height="40" rx="4" fill="#1a1040" stroke="#b45309" stroke-width="1"/>
+      <text x="568" y="53" text-anchor="middle" fill="#fcd34d" font-size="8">issues</text>
+      <text x="568" y="65" text-anchor="middle" fill="#fbbf24" font-size="7">granularity-calibrated</text>
+
+      <line x1="248" y1="55" x2="256" y2="55" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="338" y1="55" x2="346" y2="55" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="428" y1="55" x2="436" y2="55" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="518" y1="55" x2="526" y2="55" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <line x1="697" y1="60" x2="717" y2="60" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- milestones ready -->
+      <rect x="719" y="35" width="120" height="50" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="779" y="56" text-anchor="middle" fill="#a5b4fc" font-size="10">milestones ready</text>
+      <text x="779" y="70" text-anchor="middle" fill="#818cf8" font-size="9">→ /devaing-work</text>
+    </svg>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-1"><span class="text-purple-400">→</span> Phase lifecycle</h3>
+    <p class="text-xs text-gray-500 mb-4">After Phase 1, subsequent phases are started manually. /devaing-phase blocks if any issue in the current phase is open.</p>
+    <div class="space-y-3">
+      <div class="flex items-start gap-3">
+        <div class="flex flex-col items-center shrink-0">
+          <div class="w-8 h-8 rounded-full bg-indigo-900 border border-indigo-600 flex items-center justify-center text-xs text-indigo-300 font-bold">1</div>
+          <div class="w-0.5 h-6 bg-gray-700 mt-1"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3 flex-1 text-sm">
+          <code class="text-indigo-400">/devaing-phase "MVP"</code>
+          <span class="text-gray-400 ml-2 text-xs">— discovery + epics + prototype + all issues</span>
+          <div class="mt-1 flex gap-2 flex-wrap">
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">grill-me (full)</span>
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">prototype created</span>
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">CONTEXT.md ## Phases: In Progress</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex flex-col items-center shrink-0">
+          <div class="w-8 h-8 rounded-full bg-green-900 border border-green-600 flex items-center justify-center text-xs text-green-300 font-bold">↓</div>
+          <div class="w-0.5 h-6 bg-gray-700 mt-1"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3 flex-1 text-sm">
+          <code class="text-indigo-400">/devaing-work #N</code>
+          <span class="text-gray-400 ml-2 text-xs">— per issue, fresh session each time</span>
+          <div class="mt-1 text-xs text-gray-400">When last issue of all phase milestones closes: status → Complete, QA prompt, /devaing-phase for next phase.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex flex-col items-center shrink-0">
+          <div class="w-8 h-8 rounded-full bg-purple-900 border border-purple-600 flex items-center justify-center text-xs text-purple-300 font-bold">2</div>
+          <div class="w-0.5 h-6 bg-gray-700 mt-1"></div>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3 flex-1 text-sm">
+          <code class="text-indigo-400">/devaing-phase "Beta"</code>
+          <span class="text-gray-400 ml-2 text-xs">— only available once Phase 1 is Complete</span>
+          <div class="mt-1 flex gap-2 flex-wrap">
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">incremental discovery</span>
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">prototype extended with new mocks</span>
+            <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">granularity chosen per-phase</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex flex-col items-center shrink-0">
+          <div class="w-8 h-8 rounded-full bg-yellow-900 border border-yellow-600 flex items-center justify-center text-xs text-yellow-300 font-bold">✏</div>
+        </div>
+        <div class="bg-yellow-950/40 border border-yellow-800/30 rounded-lg p-3 flex-1 text-sm">
+          <code class="text-indigo-400">/devaing-phase-revise</code>
+          <span class="text-gray-400 ml-2 text-xs">— any time during an open phase</span>
+          <div class="mt-1 text-xs text-gray-400">Adjust scope, prototype, or business logic. Does NOT start a new phase — adjusts the current one.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4"><span class="text-green-400">→</span> Build loop</h3>
+    <svg viewBox="0 0 900 160" class="w-full" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="arr2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6366f1"/></marker></defs>
+      <rect x="10" y="55" width="120" height="50" rx="6" fill="#1e1b4b" stroke="#059669" stroke-width="1.5"/>
+      <text x="70" y="76" text-anchor="middle" fill="#6ee7b7" font-size="10">GitHub</text>
+      <text x="70" y="91" text-anchor="middle" fill="#34d399" font-size="9">pick milestone</text>
+
+      <rect x="160" y="55" width="140" height="50" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="230" y="73" text-anchor="middle" fill="#a5b4fc" font-size="10">/devaing-work</text>
+      <text x="230" y="88" text-anchor="middle" fill="#818cf8" font-size="9">&lt;milestone&gt; or #N</text>
+      <text x="230" y="100" text-anchor="middle" fill="#6366f1" font-size="8">creates slice if needed</text>
+
+      <rect x="335" y="25" width="110" height="40" rx="6" fill="#1e1b4b" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="390" y="43" text-anchor="middle" fill="#c4b5fd" font-size="9">ce-frontend-design</text>
+      <text x="390" y="56" text-anchor="middle" fill="#a78bfa" font-size="8">+ prototype screen</text>
+
+      <rect x="335" y="95" width="110" height="40" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="390" y="113" text-anchor="middle" fill="#a5b4fc" font-size="10">/ce-work</text>
+      <text x="390" y="126" text-anchor="middle" fill="#818cf8" font-size="8">isolated worktree</text>
+
+      <rect x="480" y="55" width="110" height="50" rx="6" fill="#1e1b4b" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="535" y="76" text-anchor="middle" fill="#a5b4fc" font-size="10">PR + CI + merge</text>
+      <text x="535" y="91" text-anchor="middle" fill="#818cf8" font-size="9">auto-validated</text>
+
+      <rect x="620" y="55" width="110" height="50" rx="6" fill="#1e1b4b" stroke="#059669" stroke-width="1.5"/>
+      <text x="675" y="76" text-anchor="middle" fill="#6ee7b7" font-size="10">CONTEXT.md</text>
+      <text x="675" y="91" text-anchor="middle" fill="#34d399" font-size="9">+ ADR if needed</text>
+
+      <rect x="760" y="55" width="110" height="50" rx="6" fill="#1e1b4b" stroke="#b45309" stroke-width="1.5"/>
+      <text x="815" y="76" text-anchor="middle" fill="#fcd34d" font-size="10">issue closed</text>
+      <text x="815" y="91" text-anchor="middle" fill="#fbbf24" font-size="9">→ next</text>
+
+      <line x1="130" y1="80" x2="158" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="300" y1="80" x2="333" y2="48" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="300" y1="80" x2="333" y2="112" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="445" y1="45" x2="478" y2="65" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="445" y1="115" x2="478" y2="95" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="590" y1="80" x2="618" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+      <line x1="730" y1="80" x2="758" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+    </svg>
+    <div class="mt-3 flex gap-4 text-xs text-gray-500">
+      <span><span class="text-yellow-400">●</span> Step 1: mid-flight detection</span>
+      <span><span class="text-gray-400">●</span> Step 2: resolve issue</span>
+      <span><span class="text-red-400">●</span> Step 3: context budget check (GSD)</span>
+      <span><span class="text-indigo-400">●</span> Step 4: route + prototype check</span>
+    </div>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4"><span class="text-yellow-400">→</span> Add feature</h3>
+    <div class="flex items-center gap-2 text-sm flex-wrap">
+      <code class="bg-gray-800 px-3 py-1.5 rounded text-indigo-400">/devaing-feature "desc"</code>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-gray-300">4 scope questions</span>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-gray-300">new or existing milestone</span>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-gray-300">first slice created</span>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-green-400">CONTEXT.md updated</span>
+    </div>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4"><span class="text-red-400">→</span> Report bug</h3>
+    <div class="flex items-center gap-2 text-sm flex-wrap">
+      <code class="bg-gray-800 px-3 py-1.5 rounded text-indigo-400">/devaing-bug "desc"</code>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-gray-300">read CONTEXT.md + code</span>
+      <span class="text-gray-500">→</span>
+      <div class="flex flex-col gap-1">
+        <span class="bg-gray-800 px-3 py-1 rounded text-gray-300 text-xs">obvious cause: direct issue</span>
+        <span class="bg-gray-800 px-3 py-1 rounded text-gray-300 text-xs">not obvious: /diagnose first</span>
+      </div>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-gray-300">assign milestone</span>
+      <span class="text-gray-500">→</span>
+      <span class="bg-gray-800 px-3 py-1.5 rounded text-green-400">agent-ready issue</span>
+    </div>
+  </div>
+</section>
+
+<!-- REFERENCE -->
+<section id="section-reference" class="hidden space-y-8">
+  <h2 class="text-xl font-bold text-white">Reference</h2>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4">Integrated third-party skills</h3>
+    <table class="w-full text-sm">
+      <thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left py-2 pr-4 w-1/4">Skill</th><th class="text-left py-2 pr-4 w-1/3">Purpose</th><th class="text-left py-2">Used in</th></tr></thead>
+      <tbody class="text-gray-300">
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code class="text-indigo-400">/grill-me</code></td><td class="py-2.5 pr-4">Domain discovery via structured interview</td><td class="py-2.5 text-gray-400">devaing-phase Step 4</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code class="text-indigo-400">/prototype</code></td><td class="py-2.5 pr-4">UX validation before issues. Survives as navigation skeleton.</td><td class="py-2.5 text-gray-400">devaing-phase Step 7 (UI epics)</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code class="text-indigo-400">/ce-work</code></td><td class="py-2.5 pr-4">Implementation engine (worktree, TDD, PR, CI, merge)</td><td class="py-2.5 text-gray-400">devaing-work Step 4</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code class="text-indigo-400">/ce-frontend-design</code></td><td class="py-2.5 pr-4">UI issues with design quality, screenshot verification</td><td class="py-2.5 text-gray-400">devaing-work Step 4 (UI issues)</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code class="text-indigo-400">/diagnose</code></td><td class="py-2.5 pr-4">Hard bugs: reproduce → minimise → hypothesize → instrument → fix</td><td class="py-2.5 text-gray-400">devaing-bug Step 2 (unclear cause)</td></tr>
+        <tr><td class="py-2.5 pr-4"><code class="text-indigo-400">/improve-codebase-architecture</code></td><td class="py-2.5 pr-4">Detects drift between emergent and planned architecture</td><td class="py-2.5 text-gray-400">devaing-work Closing (every 2-3 phases)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4">GitHub canonical labels</h3>
+    <div class="grid grid-cols-2 gap-3 text-sm">
+      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-yellow-400 shrink-0"></span><code>needs-triage</code><span class="text-gray-500">Needs evaluation</span></div>
+      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-blue-500 shrink-0"></span><code>needs-info</code><span class="text-gray-500">Waiting on reporter</span></div>
+      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-red-500 shrink-0"></span><code>ready-for-agent</code><span class="text-gray-500">Agent can take it</span></div>
+      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-green-600 shrink-0"></span><code>ready-for-human</code><span class="text-gray-500">Requires human decision</span></div>
+      <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-gray-400 shrink-0"></span><code>wontfix</code><span class="text-gray-500">Will not be actioned</span></div>
+    </div>
+  </div>
+
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4">CONTEXT.md: sections and ownership</h3>
+    <table class="w-full text-sm">
+      <thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left py-2 pr-4">Section</th><th class="text-left py-2 pr-4">Written by</th><th class="text-left py-2">Updated by</th></tr></thead>
+      <tbody class="text-gray-300">
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Project</code></td><td class="py-2.5 pr-4">devaing-phase Step 5</td><td class="py-2.5 text-gray-400">Human only</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Domain glossary</code></td><td class="py-2.5 pr-4">devaing-phase Step 5</td><td class="py-2.5 text-gray-400">devaing-work, devaing-feature, devaing-bug</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Architecture</code></td><td class="py-2.5 pr-4">devaing-phase Step 5</td><td class="py-2.5 text-gray-400">devaing-work</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Key constraints</code></td><td class="py-2.5 pr-4">devaing-phase Step 5</td><td class="py-2.5 text-gray-400">devaing-bug, devaing-work</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Phases</code></td><td class="py-2.5 pr-4">devaing-phase Step 5 (new row per phase)</td><td class="py-2.5 text-gray-400">devaing-work (In Progress → Complete on last issue)</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## Next phase backlog</code></td><td class="py-2.5 pr-4">devaing-phase Step 6</td><td class="py-2.5 text-gray-400">devaing-phase (each new phase)</td></tr>
+        <tr class="border-b border-gray-800"><td class="py-2.5 pr-4"><code>## UX conventions</code></td><td class="py-2.5 pr-4">devaing-phase Step 7</td><td class="py-2.5 text-gray-400">devaing-phase-revise (if UI adjusted)</td></tr>
+        <tr><td class="py-2.5 pr-4"><code>docs/adr/</code></td><td class="py-2.5 pr-4">devaing-work Step 5</td><td class="py-2.5 text-gray-400">Append-only, never modified</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bg-indigo-950 border border-indigo-800 rounded-xl p-6">
+    <h3 class="font-bold text-white mb-4">Quick start</h3>
+    <div class="space-y-3 text-sm font-mono">
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># New project (one-time setup + kicks off Phase 1)</p><p class="text-indigo-300">/devaing-init my-product</p></div>
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># Adjust current phase scope, prototype, or business logic</p><p class="text-indigo-300">/devaing-phase-revise</p></div>
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># Implement a specific issue (fresh session each time)</p><p class="text-indigo-300">/devaing-work #12</p></div>
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># Start next phase (only after all current-phase issues close)</p><p class="text-indigo-300">/devaing-phase "Beta"</p></div>
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># Report a bug in implemented product</p><p class="text-indigo-300">/devaing-bug "login form accepts empty email"</p></div>
+      <div class="bg-gray-900/70 rounded-lg p-3"><p class="text-gray-400 mb-1"># Add a net-new feature area mid-phase</p><p class="text-indigo-300">/devaing-feature "push notifications for calendar events"</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+  function showSection(name) {
+    document.querySelectorAll('section[id^="section-"]').forEach(s => {
+      s.classList.toggle('hidden', s.id !== 'section-' + name);
+    });
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      const active = btn.getAttribute('onclick') === `showSection('${name}')`;
+      btn.classList.toggle('text-white', active);
+      btn.classList.toggle('bg-gray-800', active);
+    });
+  }
+
+  function showSkill(name) {
+    document.querySelectorAll('.tab-pane').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const pane = document.getElementById('skill-' + name);
+    const btn = document.getElementById('tab-' + name);
+    if (pane) { pane.classList.add('active'); pane.style.display = 'block'; }
+    if (btn) btn.classList.add('active');
+  }
+
+  showSection('foundations');
+  showSkill('init');
+</script>
+</body>
+</html>
