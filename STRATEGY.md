@@ -6,14 +6,16 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 
 **Core insight:** GitHub Issues is not bureaucracy — it's a token rationalization system. Issues let the user work granularly (one issue per session), share work with friends (parallel token consumption), and give agents enough context to execute without re-explanation.
 
-## The four skills
+## The six skills
 
 | Skill | Purpose |
 |-------|---------|
-| `/devaing-init` | Setup + discovery + epics + milestones. Working mode determines issue generation. |
+| `/devaing-init` | Bootstrap: repo, CI, discovery, Phase 1 epics, prototype, issues. |
+| `/devaing-phase` | Start a new phase: verify previous phase closed, discovery, epics, prototype extension, issues. |
+| `/devaing-phase-revise` | Adjust current phase scope, prototype, or business logic before or during implementation. |
+| `/devaing-work` | Issue number or milestone name → mid-flight detection → context check → implement → CONTEXT.md → close. |
 | `/devaing-feature` | New feature area → milestone → first slice → CONTEXT.md |
 | `/devaing-bug` | Bug in natural language → structured issue with diagnosis → CONTEXT.md |
-| `/devaing-work` | Issue number or milestone name → mid-flight detection → context check → implement → CONTEXT.md → close |
 
 ## Key design decisions
 
@@ -33,7 +35,7 @@ Updated after every operation: devaing-work, devaing-bug, devaing-feature. Never
 Distinct from ADRs (decisions made) and key constraints (non-negotiable limits). Captures problems we are aware of and consciously not fixing yet: what the problem is, why it's deferred, what would trigger the fix, and operational guidance for the current state. devaing-work prompts for this at close alongside the ADR question.
 
 ### Working mode choice
-After discovery, the user picks how issues are created: Progressive (devaing-work creates slices as it goes, no GitHub issues at init time), Backlog (first unblocked slice per epic), or Complete (all issues upfront). The framework adapts to session style.
+After discovery, the user picks how issues are created: Progressive (devaing-work creates slices as it goes, no GitHub issues at init time), Backlog (first unblocked slice per epic), or Complete (all issues for the current phase upfront). Scope is always bounded by the current phase — future phases are defined when their phase starts. The framework adapts to session style.
 
 ### Prototype as living skeleton
 UI prototypes are not deleted after UX validation. They survive as navigation skeletons. Each devaing-work slice replaces one mock screen with real implementation. The rest stays intact as scaffolding for future slices. UX decisions persist in CONTEXT.md under `## UX conventions`.
@@ -87,6 +89,20 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
   → prototype UI epics (living skeleton, not deleted)
   → working mode choice: Progressive / Backlog / Complete
   → Closing with /devaing-work instructions
+```
+
+### Start new phase
+```
+/devaing-phase "phase-name"
+  → verify previous phase fully closed (all issues merged)
+  → read CONTEXT.md + closed issues from previous phase
+  → incremental discovery (abbreviated — no full grill-me for Phase 2+)
+  → update CONTEXT.md with new learnings
+  → define and approve epics for this phase       ← human validation
+  → create milestones (GitHub mode)
+  → extend prototype with new screens (living skeleton, prior screens untouched)
+  → working mode choice: Progressive / Backlog / Complete (phase-scoped)
+  → closing with /devaing-work instructions
 ```
 
 ### Build loop
