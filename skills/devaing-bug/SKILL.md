@@ -7,10 +7,6 @@ description: Report a bug in a devaing project. Converts a natural language desc
 
 Convert a bug report into a structured, actionable GitHub issue ready for an agent to take.
 
-## Language override
-
-All output from this skill — questions, inline messages, report tables, generated file content, and code comments — MUST be in English. This overrides any global language setting (including "Respond in Spanish").
-
 ## Opening — Welcome message
 
 ```

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(cp -r \"D:/Proyectos/devaing/skills/devaing-init/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-init/SKILL.md\")",
+      "Bash(cp -r \"D:/Proyectos/devaing/skills/devaing-phase/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-phase/SKILL.md\")",
+      "Bash(cp -r \"D:/Proyectos/devaing/skills/devaing-phase-revise/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-phase-revise/SKILL.md\")",
+      "Bash(cp -r \"D:/Proyectos/devaing/skills/devaing-work/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-work/SKILL.md\")",
+      "Bash(cp -r \"D:/Proyectos/devaing/skills/devaing-feature/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-feature/SKILL.md\")",
+      "Bash(cp \"C:/Users/carlos.builes/.claude/skills/devaing-init/SKILL.md\" \"D:/Proyectos/devaing/skills/devaing-init/SKILL.md\")",
+      "Bash(cp \"C:/Users/carlos.builes/.claude/skills/devaing-phase/SKILL.md\" \"D:/Proyectos/devaing/skills/devaing-phase/SKILL.md\")",
+      "WebSearch",
+      "WebFetch(domain:stitch.withgoogle.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(cp \"D:/Proyectos/devaing/skills/devaing-init/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-init/SKILL.md\")",
+      "Bash(cp \"D:/Proyectos/devaing/skills/devaing-phase/SKILL.md\" \"C:/Users/carlos.builes/.claude/skills/devaing-phase/SKILL.md\")",
+      "Bash(claude mcp *)",
+      "PowerShell(Rename-Item *)",
+      "WebFetch(domain:github.blog)",
+      "PowerShell(Get-ChildItem D:\\\\Proyectos\\\\cutti -Recurse -Force | Where-Object { !$_.PSIsContainer } | Select-Object FullName, LastWriteTime | Sort-Object LastWriteTime -Descending)"
+    ]
+  }
+}

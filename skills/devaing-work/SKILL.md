@@ -7,10 +7,6 @@ description: Take a GitHub issue or milestone name and implement the next vertic
 
 Implement a vertical slice end-to-end and keep CONTEXT.md alive.
 
-## Language override
-
-All output from this skill — questions, inline messages, report tables, generated file content, and code comments — MUST be in English. This overrides any global language setting (including "Respond in Spanish").
-
 ## Opening — Welcome message
 
 ```
@@ -26,7 +22,7 @@ Here's what's going to happen:
   2. Read the task: what to build and how to verify it works
   3. Implement everything: UI + logic + tests
   4. Update the project map with what was learned
-  5. Close the task and let you know when the PR is ready
+  5. Mark the task done
 ```
 
 ## Step 1 — Detect mid-flight session
@@ -67,6 +63,44 @@ If no: ask whether to abandon the branch before starting fresh.
 
 ## Step 2 — Resolve the issue
 
+**If invoked with no argument:**
+
+1. Fetch all open issues with their bodies:
+
+```bash
+gh issue list --state open --json number,title,milestone,body --jq 'sort_by(.number)'
+```
+
+2. Fetch the set of currently open issue numbers:
+
+```bash
+gh issue list --state open --json number --jq '[.[].number]'
+```
+
+3. For each issue, parse the `## Blocked by` section of its body and extract referenced numbers (lines matching `#N`). Classify:
+   - **READY** — no blockers listed ("None"), or all referenced numbers are not in the open set
+   - **BLOCKED** — at least one referenced number is still open
+
+4. Display, grouping READY first sorted by number, then BLOCKED sorted by number. Show which open issue is blocking each blocked task:
+
+```
+Open tasks — <phase name>
+
+  READY
+  #N   [Milestone]   title
+
+  BLOCKED
+  #N   [Milestone]   title   ← #M
+  ...
+
+Next recommended: #<lowest READY> <title>
+Work on this? (y/n — or type a number to pick a different one)
+```
+
+5. Wait for response. Use the confirmed or typed number as the target and continue to the `#N` path below.
+
+---
+
 If invoked with an issue number (`/devaing-work #N`):
 
 ```bash
@@ -75,15 +109,10 @@ gh issue view <N> --comments
 
 Read the full issue: what to build, acceptance criteria, blocked by. Verify all blockers are closed. If a blocker is still open, stop and tell the user which to complete first.
 
-If invoked with a milestone name (`/devaing-work <milestone>`) and no mid-flight session detected:
-
-**GitHub mode** — read closed issues and CONTEXT.md to determine the next slice, then create the issue:
+If invoked with a milestone name and no mid-flight session detected, read closed issues and CONTEXT.md to determine the next slice, then create the issue:
 
 ```bash
 gh issue list --milestone "<milestone>" --state closed --json number,title | head -20
-```
-
-```bash
 gh issue create \
   --title "<title>" \
   --milestone "<milestone>" \
@@ -104,9 +133,23 @@ EOF
 )"
 ```
 
-**No-GitHub mode** — read git log and CONTEXT.md to determine the next slice. No issue created. Branch name must include the milestone slug: `feat/<milestone-slug>-<slice-slug>`.
+Move the issue to "In Progress" in the GitHub Project:
 
-Store the issue number (or branch name in no-GitHub mode) and proceed.
+```bash
+PROJECT_NUMBER=$(grep "^project:" .devaing.md | awk '{print $2}')
+OWNER=$(gh api user --jq '.login')
+ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner $OWNER --format json \
+  --jq ".items[] | select(.content.number == <N>) | .id")
+PROJECT_ID=$(gh project view $PROJECT_NUMBER --owner $OWNER --format json --jq '.id')
+STATUS_FIELD=$(gh project field-list $PROJECT_NUMBER --owner $OWNER --format json \
+  --jq '.fields[] | select(.name == "Status")')
+FIELD_ID=$(echo $STATUS_FIELD | jq -r '.id')
+IN_PROGRESS_ID=$(echo $STATUS_FIELD | jq -r '.options[] | select(.name == "In Progress") | .id')
+gh project item-edit --id $ITEM_ID --field-id $FIELD_ID \
+  --project-id $PROJECT_ID --single-select-option-id $IN_PROGRESS_ID
+```
+
+If `.devaing.md` has no `project:` line or the update fails, continue silently.
 
 ## Step 3 — Context budget check
 
@@ -125,13 +168,15 @@ If the user confirms: proceed. If no: stop and let them restart clean.
 
 ## Step 4 — Route by issue type
 
-**Check for prototype:**
+**Check for prototype and design system:**
 
 ```bash
 ls prototype/ 2>/dev/null || ls src/prototype/ 2>/dev/null
 ```
 
 If a prototype exists and the issue involves UI: identify the prototype screen that corresponds to this slice. The implementation should replace that mock screen with real behavior. Leave all other prototype screens intact.
+
+If `DESIGN.md` exists at the project root: read it before implementing any UI. Use the design tokens (colors, typography, spacing, component patterns) defined there. Do not invent a design system — follow what Stitch or the external tool defined.
 
 **If the issue involves UI (screens, components, visual design):**
 
@@ -150,7 +195,7 @@ After the PR merges, evaluate whether anything changed in:
 - **Architecture**: new components, patterns, or integrations added
 - **Key constraints**: limits or behaviors discovered that weren't documented
 
-If anything changed, update `CONTEXT.md` and commit:
+If anything changed, update `CONTEXT.md` and commit + push:
 
 ```bash
 git add CONTEXT.md
@@ -192,25 +237,51 @@ git push
 gh issue close <N> --comment "Implemented in PR #<PR>. CONTEXT.md updated."
 ```
 
+Move to "Done" in the GitHub Project:
+
+```bash
+DONE_ID=$(echo $STATUS_FIELD | jq -r '.options[] | select(.name == "Done") | .id')
+gh project item-edit --id $ITEM_ID --field-id $FIELD_ID \
+  --project-id $PROJECT_ID --single-select-option-id $DONE_ID
+```
+
+(Reuse `$STATUS_FIELD`, `$ITEM_ID`, `$FIELD_ID`, `$PROJECT_ID` from Step 2. If unavailable, skip silently.)
+
 ## Closing
 
 Check if this was the last open issue in its milestone:
 
 ```bash
 gh issue list --state open --json number,milestone \
-  --jq '[.[] | select(.milestone.title == "<milestone>")]  | length'
+  --jq '[.[] | select(.milestone.title == "<milestone>")] | length'
 ```
 
 If 0 remaining in this milestone, check if ALL milestones in the current phase are now complete:
 
 ```bash
-# Get all milestones belonging to current phase from CONTEXT.md ## Phases
-# Check open issue count per milestone
 gh issue list --state open --json number,milestone \
   --jq '[.[] | select(.milestone != null)] | length'
 ```
 
 If open issues still exist in other phase milestones:
+
+**Compress the closed milestone in CONTEXT.md.** Replace verbose slice-by-slice notes with a single summary block:
+
+```markdown
+### <milestone-name> (complete)
+- Built: <what was built — interfaces exposed, components added>
+- Decisions: <link to ADRs if any, or one-line summary>
+- Known limitations: <reference to ## Known limitations entries if any, or "none">
+```
+
+Commit + push:
+
+```bash
+git add CONTEXT.md
+git commit -m "docs: compress milestone <name> in CONTEXT.md"
+git push
+```
+
 ```
 ✓ Milestone "<name>" complete.
 
@@ -218,6 +289,7 @@ If open issues still exist in other phase milestones:
 ```
 
 If ALL phase milestones are at 0 open issues — **phase complete**:
+
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║  Phase "<phase-name>" complete.                             ║
@@ -234,10 +306,10 @@ Before closing:
 
 When ready for the next phase:
 
-  /devaing-phase "<next-phase-name>"
+  /devaing-phase-def
 ```
 
-Update CONTEXT.md `## Phases` — change current phase status from `In Progress` to `Complete`:
+Update CONTEXT.md `## Phases` — change current phase status to `Complete`. Commit + push:
 
 ```bash
 git add CONTEXT.md

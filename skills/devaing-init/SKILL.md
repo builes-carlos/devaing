@@ -1,19 +1,50 @@
 ---
 name: devaing-init
-description: Initialize a new project with the devaing framework. Asks working style upfront (granularity + GitHub vs Local), runs domain discovery with grill-me, defines epics, and generates slices as GitHub issues or BACKLOG.md. Idempotent — safe to re-run. Invoked with /devaing-init <project-name> or /devaing-init (uses current folder name).
+description: Initialize a new devaing project OR show current status if already initialized. Reads CONTEXT.md first to detect existing setup before doing anything else. Use when starting a new project or re-running setup. Invoked with /devaing-init <project-name> or /devaing-init (uses current folder name).
 ---
 
 # devaing-init
 
-Initialize a new project with the full devaing setup. Every step checks whether the artifact already exists before acting — safe to re-run on any project state.
+**Execute these steps in order. Do not skip or reorder.**
 
-## Language override
+**Step A.** Use the Read tool to read `CONTEXT.md`. Do not output any text yet.
 
-All output from this skill — questions, inline messages, report tables, generated file content, and code comments — MUST be in English. This overrides any global language setting (including "Respond in Spanish").
+**Step B.** Look at the `## Phases` table in what you just read.
+- If the table has at least one data row (a row with a phase name): go to **Step C**.
+- If the file does not exist or the table has no data rows: go to **Step D**.
 
-## Opening — Welcome message
+**Step C — Already initialized.** Do the following, then stop:
 
-Resolve the project name first (read argument or `basename "$PWD"`), then output this welcome before asking anything:
+1. Run `gh issue list --state open --json number,title,milestone --jq '.[] | "#\(.number) [\(.milestone.title)] \(.title)"'` to get open issues grouped by milestone.
+2. Output the message below. Do not continue past this point.
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  <name> — Phase "<phase-name>" in progress                  ║
+╚══════════════════════════════════════════════════════════════╝
+
+Open tasks:
+
+  #N  [<milestone>] <title>
+  #N  [<milestone>] <title>
+  ...
+
+To implement the next task:
+
+  /devaing-work #N
+
+To see dependencies between tasks:
+
+  gh issue list --state open --json number,title,body,milestone
+
+Other commands:
+
+  /devaing-phase-revise     Adjust scope, prototype, or business logic
+  /devaing-bug "..."        Report something broken
+  /devaing-phase-revise     Add something not in the current plan (New area)
+```
+
+**Step D — Fresh project.** Resolve the project name (argument or `basename "$PWD"`). Output the welcome message below, then continue to Step 0:
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -24,56 +55,116 @@ Let's set up your project so it's ready to build, step by step.
 
 Here's what's going to happen:
 
-  1. Two quick questions about how you want to work
-  2. Set up the repo and project files
-  3. Interview you about your project (what it does, who it's for)
-  4. Define the main work areas together
-  5. Generate the concrete tasks for each area
+  1. Set up the repo and project files
+  2. Interview you about your project (what it does, who it's for)
+  3. Define the main work areas together
+  4. Generate the concrete tasks for each area
 
 When we're done, your project is ready to build — one task at a time.
 ```
 
-## Step 0 — Resolve name, working style, and working directory
-
-### Name resolution
-
-Already done in the Opening step above.
-
-### Working style questions
+## Step 0 — Working style
 
 ```
 Question 1 of 2 — How detailed should the tasks be?
-(Technically: slice / user story granularity)
 
-  1. Broad    — 2-4 tasks per area. Each task covers a lot of ground.
-                Move fast. Great for MVPs and exploring new ideas.
-
-  2. Balanced — 3-6 tasks per area. One task = one concrete thing
-                a user can do. The natural middle ground.
-
-  3. Detailed — 6-12 tasks per area. Every edge case has its own task.
-                For projects where bugs have real consequences.
+  1. Broad    — 2-4 tasks per area. Move fast. Great for MVPs.
+  2. Balanced — 3-6 tasks per area. One task = one concrete user action.
+  3. Detailed — 6-12 tasks per area. Every edge case covered.
 ```
 
-Wait for response. Store as `<granularity>` (Broad/Balanced/Detailed).
+Wait for response. Store as `<granularity>`.
 
 ```
-Question 2 of 2 — Where do you want to track the task list?
+Question 2 of 2 — Who generates the prototype?
 
-  1. Local file  — A BACKLOG.md file in your project. No external accounts.
-                   Start immediately.
-
-  2. GitHub      — Issues and milestones on GitHub. Visibility, collaboration,
-                   CI integration.
+  1. Claude     — Built-in prototype skill. No setup needed.
+  2. Stitch     — Google Stitch via MCP. Better visual quality.
+                  Requires a free account at stitch.withgoogle.com.
+  3. Other MCP  — Any design tool you have configured as an MCP server.
 ```
 
-Wait for response. Store as `<tracking>` (Local/GitHub).
+Wait for response. Store as `<prototyper>`.
 
-### Auth check (GitHub only)
+If `<prototyper>` is **Other MCP**, ask:
 
-If `<tracking>` is **Local**: skip this section entirely.
+```
+MCP tool name? (e.g., mcp__figma__generate_screen)
+```
 
-If `<tracking>` is **GitHub**:
+Wait. Store as `<prototyper_tool>`.
+
+```
+Briefly describe what it expects and returns:
+(e.g., "Call with epic_name and description. Returns a URL.")
+```
+
+Wait. Store as `<prototyper_instructions>`.
+
+## Step 0b — Stitch MCP setup
+
+Skip if `<prototyper>` is not `Stitch`.
+
+The real availability test is whether any `mcp__stitch__*` tool is accessible in the current session. Do not check env vars or run `claude mcp list` — the env var may exist in the OS registry but not in this process if Claude Code was not restarted after `setx`.
+
+If any `mcp__stitch__*` tool is accessible: skip to the next step.
+
+Otherwise:
+
+**Write `.mcp.json` if needed.** Read `~/.claude/.mcp.json`. If the file does not exist or has no `stitch` entry, write or merge:
+
+```json
+{
+  "stitch": {
+    "type": "http",
+    "url": "https://stitch.googleapis.com/mcp",
+    "headers": {
+      "x-goog-api-key": "${STITCH_API_KEY}"
+    }
+  }
+}
+```
+
+Then output and wait:
+
+```
+Stitch MCP is not connected. How would you like to proceed?
+
+  1. Set up Stitch now (requires restart)
+  2. Use Claude for prototyping instead
+```
+
+- If 2: change `<prototyper>` to `Claude`, continue to Step 2.
+- If 1: output the following, then stop:
+
+```
+Steps to connect Stitch:
+
+  1. Create a free account: stitch.withgoogle.com
+  2. Generate an API key: Settings → API Keys → New key
+  3. Save the key so Claude Code can read it:
+
+     If you use the Claude Code desktop app (Windows):
+       Add an "env" block to ~/.claude/settings.json:
+         "env": { "STITCH_API_KEY": "<your-key>" }
+       Then restart the app.
+
+     If you launch Claude Code from a terminal (claude CLI):
+       Windows:  setx STITCH_API_KEY "<your-key>"
+       Mac/Linux: echo 'export STITCH_API_KEY="<your-key>"' >> ~/.zshrc
+       Then close the terminal, open a new one, and relaunch.
+
+     Note: setx does NOT work for the desktop app — the app does not
+     inherit terminal environment variables.
+
+~/.claude/.mcp.json is already configured for Stitch.
+
+Re-run /devaing-init when you're back.
+```
+
+## Step 2 — Auth and working directory
+
+### Auth check
 
 ```bash
 gh auth status 2>/dev/null
@@ -87,11 +178,7 @@ gh api user --jq '.login'
 
 Store result as `<owner>`.
 
-### State detection matrix (GitHub only)
-
-If `<tracking>` is **Local**: ensure we are inside the project directory. If not, `cd <name>` or create the directory.
-
-If `<tracking>` is **GitHub**:
+### State detection matrix
 
 ```bash
 test -d <name> && echo "local_exists"
@@ -109,10 +196,6 @@ gh repo view <owner>/<name> --json name 2>/dev/null && echo "remote_exists"
 All subsequent steps run from inside `<name>/`.
 
 ## Step 1 — Detect current branch
-
-If `<tracking>` is **Local**: skip. Set `<branch>` to empty.
-
-If `<tracking>` is **GitHub**:
 
 ```bash
 git branch --show-current
@@ -163,7 +246,7 @@ Claude Code: `/ce-code-review` or `/ultrareview`
 
 After each PR merges, human QA verifies product behavior. Findings become new GitHub issues.
 
-Claude Code: `/devaing-phase-revise` (adjust phase), `/devaing-bug "description"`, `/devaing-feature "description"`
+Claude Code: `/devaing-phase-revise` (adjust phase or add new area), `/devaing-bug "description"`
 
 ### CONTEXT.md
 
@@ -230,9 +313,7 @@ Use the vocabulary from `CONTEXT.md`. Flag any contradiction with existing ADRs 
 
 ## Step 4 — GitHub labels
 
-If `<tracking>` is **Local**: skip entirely.
-
-If `<tracking>` is **GitHub** — run unconditionally (`--force` makes each call idempotent):
+Run unconditionally (`--force` makes each call idempotent):
 
 ```bash
 gh label create "needs-triage"    --color "e4e669" --description "Needs evaluation" --force
@@ -241,6 +322,32 @@ gh label create "ready-for-agent" --color "d73a4a" --description "Agent can take
 gh label create "ready-for-human" --color "008672" --description "Requires human decision" --force
 gh label create "wontfix"         --color "ffffff" --description "Will not be actioned" --force
 ```
+
+## Step 4b — GitHub Project
+
+Check if a project named `<name>` already exists:
+
+```bash
+gh project list --owner <owner> --format json --jq '.projects[] | select(.title == "<name>") | .number'
+```
+
+If found, store as `<project-number>` and skip creation.
+
+Otherwise create it:
+
+```bash
+gh project create --owner <owner> --title "<name>" --format json --jq '.number'
+```
+
+Store result as `<project-number>`.
+
+Link the project to the repo so issues appear automatically:
+
+```bash
+gh project link <project-number> --owner <owner> --repo <owner>/<name>
+```
+
+Add `project: <project-number>` to `.devaing.md`.
 
 ## Step 5 — Compound Engineering plugin
 
@@ -257,9 +364,7 @@ Otherwise attempt in order:
 
 ## Step 6 — CI workflow
 
-If `<tracking>` is **Local**: skip entirely.
-
-If `<tracking>` is **GitHub**: skip if `.github/workflows/ci.yml` already exists.
+Skip if `.github/workflows/ci.yml` already exists.
 
 Otherwise, infer the stack from the project root (look for `package.json`, `requirements.txt`, `pyproject.toml`, `Cargo.toml`, `go.mod`) and create the appropriate workflow replacing `<branch>`:
 
@@ -364,6 +469,11 @@ Otherwise write `.devaing.md` at the project root:
 ```markdown
 # devaing workflow
 
+tracking: GitHub
+granularity: <granularity>
+prototyper: <prototyper>
+project: <project-number>
+
 Runtime-agnostic spec. For Claude Code, use the `/devaing-*` skills directly.
 
 ## devaing-work — Implement a slice
@@ -376,14 +486,6 @@ Takes a GitHub issue (`#N`) or milestone name and implements the next vertical s
 4. **Implement**: if UI issue, implement the visual layer first (replace the matching prototype screen if one exists, leave others as mocks). Then backend + tests.
 5. **Update CONTEXT.md**: after merge, add new domain terms, architecture changes, known limitations.
 6. **Close the issue** with a reference to the PR.
-
-## devaing-feature — Add a feature
-
-1. Understand the request in one sentence.
-2. Identify which epic/milestone it belongs to.
-3. Verify it does not duplicate an existing open issue.
-4. Create the issue: what to build, acceptance criteria, blockers.
-5. Assign to the correct milestone with label `ready-for-agent` or `ready-for-human`.
 
 ## devaing-bug — Report and fix a bug
 
@@ -398,9 +500,9 @@ Takes a GitHub issue (`#N`) or milestone name and implements the next vertical s
 1. Creates or clones the GitHub repo.
 2. Sets up AGENTS.md, .devaing.md, docs/agents/, CI, triage labels.
 3. Creates CONTEXT.md base structure.
-4. Kicks off Phase 1 by calling /devaing-phase.
+4. Kicks off Phase 1 by calling /devaing-phase-def.
 
-## devaing-phase — Kick off a phase
+## devaing-phase-def — Kick off a phase
 
 1. Verifies previous phase is closed (no open issues).
 2. Asks phase name and granularity.
@@ -424,10 +526,6 @@ git status --porcelain
 
 If empty: skip, note "no changes".
 
-If `<tracking>` is **Local**: skip entirely.
-
-If `<tracking>` is **GitHub**:
-
 ```bash
 git add .
 git commit -m "chore: devaing project setup
@@ -447,7 +545,8 @@ git push -u origin <branch>
 | Repo | created / cloned / already existed / local |
 | AGENTS.md | created / updated / already existed |
 | docs/agents/ | created / already existed |
-| Labels | applied / N/A (local) |
+| GitHub Project | created / already existed |
+| Labels | applied / already existed |
 | Compound Engineering | installed / already installed / manual required |
 | ci.yml | created / already existed |
 | CONTEXT.md | created / already existed |
@@ -466,10 +565,10 @@ grep -q "In Progress" CONTEXT.md && echo "phase_open" || echo "no_open_phase"
 
 | State | Action |
 |-------|--------|
-| `## Phases` absent or empty | Fresh project — call `/devaing-phase` for Phase 1 |
+| `## Phases` absent or empty | Fresh project — call `/devaing-phase-def` for Phase 1 |
 | Phase `In Progress`, 0 issues | Phase kicked off but nothing built — show available skills |
-| Phase `In Progress`, N issues open | Active phase — show available skills, skip `/devaing-phase` call |
-| All phases `Complete` | Show that `/devaing-phase` is available for a new phase |
+| Phase `In Progress`, N issues open | Active phase — show available skills, skip `/devaing-phase-def` call |
+| All phases `Complete` | Show that `/devaing-phase-def` is available for a new phase |
 
 If a phase is already `In Progress`, output one line noting state and skip to Closing.
 
@@ -478,33 +577,14 @@ If a phase is already `In Progress`, output one line noting state and skip to Cl
 Show this message so the user learns the command for future phases:
 
 ```
-Starting Phase 1 — calling /devaing-phase.
+Starting Phase 1 — calling /devaing-phase-def.
 
 For future phases, you will run this yourself:
-  /devaing-phase "<phase-name>"
+  /devaing-phase-def
 ```
 
-Then invoke `/devaing-phase`. Pass `<granularity>` and `<tracking>` from Step 0 so devaing-phase skips its own Step 1. The closing message comes from devaing-phase.
+Then invoke `/devaing-phase-def`. Pass `<granularity>` from Step 0 so devaing-phase-def skips its own Step 1. The closing message comes from devaing-phase-def.
 
-## Closing (re-run only — active phase detected)
+## Closing (re-run with incomplete setup)
 
-Only shown when Step 8b detects a phase already in progress:
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║  <name> — setup already complete.                           ║
-╚══════════════════════════════════════════════════════════════╝
-
-Phase "<phase-name>" is open.
-
-Available now:
-
-  /devaing-phase-revise     Adjust scope, prototype, or business logic
-  /devaing-work #N          Implement a task
-  /devaing-bug              Report something broken
-  /devaing-feature          Add something not in the current plan
-
-Not available yet:
-
-  /devaing-phase            Blocked — current phase has open issues.
-```
+Only reached from Step 8b when `.devaing.md` is missing but CONTEXT.md already has a phase in progress (setup was interrupted mid-run). Output the same re-run message from the Opening section, then stop.

@@ -1,15 +1,11 @@
 ---
 name: devaing-phase-revise
-description: Adjust the current phase before or during implementation. Covers scope changes (issues wrong, missing, or excess), prototype revisions, and business logic corrections discovered after grill-me. Invoked with /devaing-phase-revise.
+description: Adjust the current phase or add a net-new feature area. Covers scope changes (issues wrong, missing, or excess), prototype revisions, business logic corrections, and adding functionality not in the original plan. Invoked with /devaing-phase-revise.
 ---
 
 # devaing-phase-revise
 
-Adjust the current phase — scope, prototype, or business logic — before writing more code.
-
-## Language override
-
-All output from this skill — questions, inline messages, report tables, generated file content, and code comments — MUST be in English. This overrides any global language setting (including "Respond in Spanish").
+Adjust scope, prototype, or business logic during implementation — or add a net-new feature area. Only available after /devaing-phase-def has generated issues.
 
 ## Opening — Welcome message
 
@@ -18,7 +14,11 @@ All output from this skill — questions, inline messages, report tables, genera
 ║  devaing-phase-revise                                       ║
 ╚══════════════════════════════════════════════════════════════╝
 
-Let's adjust the phase before building.
+Adjust the current phase — scope, prototype, or business logic.
+
+Use this command during implementation when something needs to change.
+For pre-implementation adjustments, use /devaing-phase-def (which
+handles prototype revisions inline before generating tasks).
 
 Here's what's going to happen:
 
@@ -26,9 +26,12 @@ Here's what's going to happen:
   2. Understand what needs adjusting
   3. Make the changes
   4. Confirm what changed
+
+After revising, run /devaing-phase-def to generate the task backlog
+(if tasks don't exist yet) or continue with /devaing-work.
 ```
 
-## Step 0 — Verify phase is open
+## Step 0 — Verify phase is open and definition is closed
 
 Read CONTEXT.md `## Phases`. Find the phase with status `In Progress`.
 
@@ -37,7 +40,27 @@ If none:
 ```
 No open phase to revise.
 
-  → To start a new phase: /devaing-phase "<name>"
+  → To start a new phase: /devaing-phase-def
+```
+
+Stop.
+
+Check whether any issues exist for this phase (open or closed):
+
+```bash
+gh issue list --state all --json number,milestone \
+  --jq '[.[] | select(.milestone != null)] | length'
+```
+
+If 0 issues exist (definition not yet closed):
+
+```
+⛔ Phase "<name>" is still being defined — no tasks generated yet.
+
+/devaing-phase-revise is only available after /devaing-phase-def closes.
+
+Use /devaing-phase-def to adjust prototype, epics, or business logic
+while the phase is being defined.
 ```
 
 Stop.
@@ -71,7 +94,8 @@ What needs adjusting?
   1. Scope     — epics or issues that are wrong, missing, or should be cut
   2. Prototype — screens that don't make sense or need redesign
   3. Business  — something that changed the plan since discovery
-  4. Multiple  — describe everything
+  4. New area  — add functionality that wasn't in the original plan
+  5. Multiple  — describe everything
 ```
 
 Wait for response. Ask follow-up questions until the full scope of the adjustment is clear.
@@ -117,6 +141,41 @@ Invoke `prototype` for the affected screens only. Do not touch screens from prev
 
 Update the relevant sections of `CONTEXT.md` (glossary, architecture, constraints). If the change affects existing open issues, update those issues with a comment explaining what changed.
 
+**New area:**
+
+Ask these four questions and wait for all answers:
+
+```
+Before generating issues:
+
+1. What problem does this feature solve for the user?
+2. Who uses it and in what situation?
+3. What is explicitly out of scope?
+4. Are there any technical or business constraints to respect?
+```
+
+If any answer contradicts something in `CONTEXT.md`, flag it before continuing.
+
+Determine if the feature fits an existing milestone or requires a new one:
+
+```bash
+gh api repos/{owner}/{repo}/milestones --jq '[.[] | {number, title}]'
+```
+
+If unclear, ask: "Is this an extension of `<existing milestone>` or a new area?"
+
+Create a milestone if needed:
+
+```bash
+gh api repos/{owner}/{repo}/milestones --method POST \
+  --field title="<name>" \
+  --field description="<description>"
+```
+
+Generate vertical slices in dependency order and publish each as a GitHub issue with `ready-for-agent` label, the same `## What / ## Acceptance criteria / ## Blocked by` body format used by other issues in this project.
+
+Update `CONTEXT.md` if the new area introduces domain terms, architectural components, or constraints not already documented.
+
 ## Step 4 — Confirm changes
 
 Show a summary:
@@ -141,19 +200,28 @@ git push
 
 ## Closing
 
+Check whether the task backlog exists:
+Check whether there are any open issues in the current phase milestones.
+
+**If no tasks exist yet** — this state should not be reached (Step 0 blocks it). If somehow reached, redirect:
+
+```
+  → /devaing-phase-def to finish defining the phase.
+```
+
+**If tasks already exist (implementation is underway):**
+
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║  Phase revised. Ready to build.                             ║
 ╚══════════════════════════════════════════════════════════════╝
 
-Available now:
-
   /devaing-phase-revise     Revise again if needed
   /devaing-work #N          Implement a task
   /devaing-bug              Report something broken
-  /devaing-feature          Add something not in the current plan
+  /devaing-phase-revise     Add something not in the current plan (New area)
 
 Not available yet:
 
-  /devaing-phase            Blocked — current phase has open issues.
+  /devaing-phase-def        Blocked — current phase has open issues.
 ```

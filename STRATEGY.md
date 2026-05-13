@@ -6,16 +6,16 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 
 **Core insight:** GitHub Issues is not bureaucracy — it's a token rationalization system. Issues let the user work granularly (one issue per session), share work with friends (parallel token consumption), and give agents enough context to execute without re-explanation.
 
-## The six skills
+## The seven skills
 
 | Skill | Purpose |
 |-------|---------|
 | `/devaing-init` | Bootstrap: repo, CI, discovery, Phase 1 epics, prototype, issues. |
-| `/devaing-phase` | Start a new phase: verify previous phase closed, discovery, epics, prototype extension, issues. |
-| `/devaing-phase-revise` | Adjust current phase scope, prototype, or business logic before or during implementation. |
-| `/devaing-work` | Issue number or milestone name → mid-flight detection → context check → implement → CONTEXT.md → close. |
-| `/devaing-feature` | New feature area → milestone → first slice → CONTEXT.md |
+| `/devaing-phase-def` | Define a phase end-to-end: discovery, epics, prototype, review loop, issue generation. Does not exit until issues are created. |
+| `/devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Blocked until /devaing-phase-def has generated issues. |
+| `/devaing-work` | No arg → dependency-aware issue list → user picks. Issue number or milestone name → mid-flight detection → context check → implement → CONTEXT.md → close. |
 | `/devaing-bug` | Bug in natural language → structured issue with diagnosis → CONTEXT.md |
+| `/devaing-status` | Snapshot: current phase, per-epic progress, next unblocked task, and the exact command to run next. |
 
 ## Key design decisions
 
@@ -29,7 +29,9 @@ Only two human validations in devaing-init: grill-me (domain) and epic list appr
 GitHub milestones group issues by epic. Human navigates by milestone, not flat list.
 
 ### CONTEXT.md is the single source of truth
-Updated after every operation: devaing-work, devaing-bug, devaing-feature. Never stale because it grows with the product.
+Updated after every operation: devaing-work, devaing-bug, devaing-phase-revise. Never stale because it grows with the product.
+
+To prevent context rot from accumulated slice-by-slice notes, CONTEXT.md is compressed at milestone close: verbose operational detail is replaced with a 3-line summary block (what was built, decisions made, known limitations introduced). ADRs and Known limitations entries are never removed — only deduplicated into their canonical sections.
 
 ### Known limitations section in CONTEXT.md (from HBX/senior-dev practice)
 Distinct from ADRs (decisions made) and key constraints (non-negotiable limits). Captures problems we are aware of and consciously not fixing yet: what the problem is, why it's deferred, what would trigger the fix, and operational guidance for the current state. devaing-work prompts for this at close alongside the ADR question.
@@ -40,11 +42,40 @@ After discovery, the user picks how issues are created: Progressive (devaing-wor
 ### Prototype as living skeleton
 UI prototypes are not deleted after UX validation. They survive as navigation skeletons. Each devaing-work slice replaces one mock screen with real implementation. The rest stays intact as scaffolding for future slices. UX decisions persist in CONTEXT.md under `## UX conventions`.
 
+Prototype screens must be stateless and presentational — no local state, no API calls, no hardcoded data beyond display fixtures. This constraint keeps each screen independently replaceable without touching adjacent screens.
+
+### Phase definition loop
+devaing-phase-def owns the full definition process and does not exit until issues are generated. After the prototype is built, it enters a review loop: the user can adjust screens, epics, or business logic inline, then re-review, as many times as needed. When they confirm "looks good," issues are generated and the definition closes. There is no need to re-run the command or jump to another skill during definition.
+
+/devaing-phase-revise is blocked while the phase is being defined (no issues exist yet). It only becomes available once devaing-phase-def has closed.
+
+### Prototyper selection
+The tool that generates the prototype is configured per-project in `.devaing.md` as `prototyper: Claude | Stitch | Other MCP`. Set at init time.
+
+- **Claude**: invokes the built-in `prototype` skill. No external accounts.
+- **Stitch**: uses the Stitch MCP server (`https://stitch.googleapis.com/mcp`, configured in `~/.claude/.mcp.json`). Generates higher-quality visual screens. Exports `DESIGN.md` to the project root. Requires `STITCH_API_KEY` env var.
+- **Other MCP**: any MCP server already configured. User provides tool name and a brief description of what it expects and returns.
+
+### DESIGN.md as design system bridge
+When Stitch (or any external tool) generates the prototype, it exports a `DESIGN.md` file containing the design system: color palette, typography, spacing, and component patterns. devaing-work reads this file before implementing any UI slice and uses its tokens directly. This ensures the implemented code matches the approved visual design without inventing a parallel system.
+
+### Phase state detection matrix
+devaing-phase-def detects setup state at every invocation, enabling safe re-entry after interrupted sessions:
+
+| UX conventions in CONTEXT.md | Issues exist | State | Action |
+|---|---|---|---|
+| No | No | Interrupted before prototype | Resume at prototype step |
+| Yes | No | Prototype built, review in progress | Resume review loop |
+| — | Yes | Definition closed — active phase | Block |
+
 ### Context rot awareness (from GSD)
 Context quality degrades predictably: peak at 0-30%, rushes at 50%+, hallucinates at 70%+. devaing-work addresses this in two places: (1) warns before dispatching to ce-work if the session is already loaded, (2) suggests a fresh session after each closed slice.
 
 ### Mid-flight session recovery (from gstack)
-If a devaing-work session dies mid-slice (context full, crash, closed window), the next invocation detects the orphaned work and offers to resume. GitHub mode: finds open issue with existing branch. No-GitHub mode: finds unmerged branch matching the milestone slug.
+If a devaing-work session dies mid-slice (context full, crash, closed window), the next invocation detects the orphaned work and offers to resume. Finds open issue with existing branch matching the milestone slug.
+
+### GitHub Projects integration
+Every devaing project gets a linked GitHub Project (created by devaing-init). Issues are added to the Project automatically when created. devaing-work moves cards to "In Progress" when work starts and "Done" when the issue closes. Issue dependencies are registered via the GitHub GraphQL API (GA August 2025) so blockers are visible natively in the issue sidebar and the Project board. The `## Blocked by` text in the issue body remains as a readable fallback.
 
 ## Skills integrated (third-party, not modified)
 
@@ -81,46 +112,59 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 ### Initial setup (new project)
 ```
 /devaing-init
-  → tech setup (repo, CI, AGENTS.md, CONTEXT.md, labels, plugin)
-  → grill-me                          ← human validation 1
-  → populate CONTEXT.md
-  → propose epic list                 ← human validation 2
-  → create GitHub milestones
-  → prototype UI epics (living skeleton, not deleted)
-  → working mode choice: Progressive / Backlog / Complete
-  → Closing with /devaing-work instructions
+  → auth check + repo create/clone
+  → GitHub Project created and linked to repo
+  → triage labels, CI workflow, AGENTS.md, CONTEXT.md, .devaing.md
+  → /devaing-phase-def called for Phase 1
 ```
 
-### Start new phase
+### Define a phase (new or resume)
 ```
-/devaing-phase "phase-name"
-  → verify previous phase fully closed (all issues merged)
-  → read CONTEXT.md + closed issues from previous phase
-  → incremental discovery (abbreviated — no full grill-me for Phase 2+)
-  → update CONTEXT.md with new learnings
-  → define and approve epics for this phase       ← human validation
-  → create milestones (GitHub mode)
-  → extend prototype with new screens (living skeleton, prior screens untouched)
-  → working mode choice: Progressive / Backlog / Complete (phase-scoped)
-  → closing with /devaing-work instructions
+/devaing-phase-def   (no argument — reads state from CONTEXT.md)
+  → detect setup state (interrupted / review-in-progress / active / new)
+  → if new: verify previous phase closed, ask phase name
+  → discovery: full grill-me (Phase 1) or incremental interview (Phase 2+)
+  → update CONTEXT.md with learnings
+  → define and approve epic list              ← human validation
+  → create GitHub milestones
+  → generate prototype via <prototyper> (Claude / Stitch / Other MCP)
+      if Stitch: export DESIGN.md to project root
+  → review loop (inline):
+      adjust screens / epics / business logic as many times as needed
+      ← human validation (iterative)
+  → "looks good" → generate issues → register dependencies via GitHub API
+  → add all issues to GitHub Project
+  → definition closed — /devaing-phase-revise now available
+```
+
+### Check project status
+```
+/devaing-status
+  → read CONTEXT.md + .devaing.md + GitHub issues
+  → output: phase, per-epic progress, next unblocked task
+  → output: exact command to run next
 ```
 
 ### Build loop
 ```
-human picks milestone
+human picks task (or uses /devaing-status to find it)
+→ /devaing-work (no arg): fetch open issues, classify READY vs BLOCKED,
+    show dependency table, user confirms or types a number
 → /devaing-work <milestone> or #N
     → detect mid-flight session (resume if found)
     → context budget check (warn if session already loaded)
-    → if UI: ce-frontend-design (with prototype screen) + ce-work
+    → read DESIGN.md if exists (Stitch design system tokens)
+    → if UI: ce-frontend-design (with prototype screen + DESIGN.md) + ce-work
     → if not UI: ce-work directly
     → merge → CONTEXT.md update → ADR if non-obvious decision
     → suggest fresh session for next slice
-    → if last issue in milestone: QA prompt + /improve-codebase-architecture
+    → if last issue in milestone: compress milestone in CONTEXT.md
+    → if last issue in phase: QA prompt + /improve-codebase-architecture
 ```
 
-### Add feature
+### Add feature area
 ```
-/devaing-feature "description"
+/devaing-phase-revise → "New area"
   → 4 scope questions (problem, user, out-of-scope, constraints)
   → evaluate milestone (existing or new)
   → generate issues directly
