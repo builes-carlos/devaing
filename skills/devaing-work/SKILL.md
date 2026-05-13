@@ -104,12 +104,12 @@ How many tasks do you want to implement?
 
 **If 1 (one):** Ask which number. Use the confirmed or typed number as the target and continue to the `#N` path below.
 
-**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. The agent must: read CONTEXT.md and DESIGN.md before starting; implement UI, data layer, API routes, and tests; create a branch, open a PR, run `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer` on the diff, address critical findings, wait for CI, and merge. After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
+**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. Pass the full issue content as the work document and instruct the agent to invoke `ce-work` (or `ce-frontend-design` followed by `ce-work` if the issue involves UI). After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
 
 **If 3 (cascade):** Repeat until zero open issues remain in the phase:
 1. Fetch open issues and note the current count. Compute READY set (same classification as above).
 2. If READY is empty but open issues remain: all are blocked — stop and report which are waiting.
-3. For each READY issue in number order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. Each agent must: read CONTEXT.md and DESIGN.md before starting; implement UI, data layer, API routes, and tests; create a branch, open a PR, run `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer` on the diff, address critical findings, wait for CI, and merge.
+3. For each READY issue in number order, spawn an Agent with `isolation: "worktree"` to implement the issue. Pass the full issue content and instruct the agent to invoke `ce-work` (or `ce-frontend-design` followed by `ce-work` if the issue involves UI).
 4. After all agents in the batch complete, re-fetch open issues. If the open count has not decreased (no issues were closed), stop and report which issues failed — do not loop.
 5. Otherwise, recompute READY (newly unblocked issues may now be ready) and repeat from step 1.
 
@@ -196,24 +196,14 @@ If a prototype exists and the issue involves UI: identify the prototype screen t
 
 If `DESIGN.md` exists at the project root: read it before implementing any UI. Use the design tokens (colors, typography, spacing, component patterns) defined there. Do not invent a design system — follow what Stitch or the external tool defined.
 
-**Implementation protocol:**
+**If the issue involves UI (screens, components, visual design):**
 
-1. Create a branch:
-   ```bash
-   git checkout -b issue-<N>-<slug>
-   ```
-2. Implement end-to-end: UI, data layer, API routes, and tests. Do not defer any layer.
-3. For UI work: follow `DESIGN.md` design tokens if present. Otherwise follow prototype screens. After implementing, take a screenshot and verify it matches the intended design before proceeding.
-4. Run the test suite. Fix all failures before proceeding.
-5. Open a PR:
-   ```bash
-   gh pr create --title "<issue title>" --body "Closes #<N>"
-   ```
-6. Review the diff using compound-engineering reviewer agents via the Agent tool:
-   - Always: `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer`
-   - For large diffs or diffs touching auth, payments, or data mutations: also `compound-engineering:ce-adversarial-reviewer`
-   - Address all critical findings before proceeding.
-7. Wait for CI to pass. Fix any failures.
+1. Invoke `ce-frontend-design` first, passing the issue content and the corresponding prototype screen if one exists. Let it implement the UI with design quality, verify via screenshots, and iterate until it matches the expected behavior.
+2. Then invoke `ce-work` for any remaining non-UI logic (backend, tests, integration).
+
+**Otherwise:**
+
+Invoke `ce-work` passing the issue content as the work document. Let ce-work run its full flow: worktree, TDD, review, PR, CI, merge.
 
 ## Step 5 — Update CONTEXT.md and ADRs
 
