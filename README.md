@@ -31,33 +31,56 @@ GitHub Issues is not bureaucracy — it is a token rationalization system. Each 
 
 ## Prerequisites
 
-- [Claude Code](https://claude.ai/code) with a valid subscription
-- [GitHub CLI](https://cli.github.com/) authenticated (`gh auth login`)
-- [Compound Engineering plugin](https://github.com/EveryInc/compound-engineering-plugin) installed (provides `ce-work` and `ce-frontend-design`)
+**1. Claude Code**
+
+Download from [claude.ai/code](https://claude.ai/code). Requires a Pro or Team subscription.
+
+**2. GitHub CLI**
+
+```bash
+# Mac
+brew install gh
+
+# Windows
+winget install GitHub.cli
+```
+
+Then authenticate:
+
+```bash
+gh auth login
+```
+
+**3. Compound Engineering plugin**
+
+Provides `ce-work` (implementation engine) and `ce-frontend-design` (UI quality layer), which devaing-work delegates to.
+
+```bash
+claude plugin install compound-engineering
+```
+
+If that fails (plugin marketplace not yet configured):
+
+```bash
+claude plugin marketplace add EveryInc/compound-engineering-plugin
+claude plugin install compound-engineering
+```
 
 ---
 
 ## Installation
 
-Copy the skill directories to your Claude Code skills folder:
-
-```
-~/.claude/skills/
-  devaing-init/
-  devaing-phase-def/
-  devaing-phase-revise/
-  devaing-work/
-  devaing-bug/
-  devaing-status/
-```
-
-Each skill folder contains one `SKILL.md` file. Claude Code picks them up automatically at session start.
-
-### Validate after installing
-
 ```bash
-python -m scripts.quick_validate skills/devaing-work
+git clone https://github.com/builes-carlos/devaing.git
+cd devaing
+bash install.sh
 ```
+
+Then restart Claude Code. The six `/devaing-*` commands will be available immediately.
+
+### What the script does
+
+Copies each `skills/devaing-*/SKILL.md` into `~/.claude/skills/`. Claude Code loads skill files from that directory at session start. No build step, no dependencies.
 
 ---
 
