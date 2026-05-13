@@ -93,11 +93,26 @@ Open tasks — <phase name>
   #N   [Milestone]   title   ← #M
   ...
 
-Next recommended: #<lowest READY> <title>
-Work on this? (y/n — or type a number to pick a different one)
+How many tasks do you want to implement?
+
+  1. One     — pick from the list above
+  2. All ready now — implement all currently READY tasks in sequence
+  3. Cascade — implement READY tasks, unlock the next ones, repeat until the phase is empty
 ```
 
-5. Wait for response. Use the confirmed or typed number as the target and continue to the `#N` path below.
+5. Wait for response.
+
+**If 1 (one):** Ask which number. Use the confirmed or typed number as the target and continue to the `#N` path below.
+
+**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, invoke `ce-work` as a subagent passing the full issue content. Skip Steps 3 and 4 — ce-work runs in its own isolated context per issue. After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
+
+**If 3 (cascade):** Repeat until zero open issues remain in the phase:
+1. Compute READY set (same classification as above).
+2. If READY is empty but open issues remain: all are blocked — stop and report which are waiting.
+3. For each READY issue in number order: invoke `ce-work` as a subagent.
+4. After each batch completes, re-fetch open issues and recompute READY (newly unblocked issues may now be ready).
+
+Each `ce-work` subagent runs in its own context — no context budget accumulation in the orchestrating session.
 
 ---
 
@@ -153,7 +168,9 @@ If `.devaing.md` has no `project:` line or the update fails, continue silently.
 
 ## Step 3 — Context budget check
 
-Before dispatching to ce-work, assess the current session's context load. Context quality degrades predictably: at 50%+ the model rushes, at 70%+ it hallucinates and drops requirements.
+Only applies to mode 1 (single issue). Modes 2 and 3 spawn each `ce-work` as a subagent with its own context — no budget concern.
+
+For mode 1: before dispatching to ce-work, assess the current session's context load. Context quality degrades predictably: at 50%+ the model rushes, at 70%+ it hallucinates and drops requirements.
 
 If this is not the first slice in the current session (i.e., prior devaing-work output exists in this conversation):
 
