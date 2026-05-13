@@ -187,14 +187,7 @@ After approval:
 - Phase <N+1> — <epic name> — <one-line description>
 ```
 
-3. **Admin panel rule:** verify the epic list contains an admin panel epic. If not, add one automatically and tell the user:
-
-```
-Adding required epic: Admin Panel
-All system configuration must live in the DB, not in code.
-```
-
-4. Create one milestone per epic:
+3. Create one milestone per epic:
 
 ```bash
 gh api repos/<owner>/<name>/milestones --method POST \
@@ -202,7 +195,7 @@ gh api repos/<owner>/<name>/milestones --method POST \
   --field description="<epic-description>"
 ```
 
-5. Commit:
+4. Commit:
 
 ```bash
 git add CONTEXT.md

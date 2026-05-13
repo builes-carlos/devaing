@@ -104,15 +104,16 @@ How many tasks do you want to implement?
 
 **If 1 (one):** Ask which number. Use the confirmed or typed number as the target and continue to the `#N` path below.
 
-**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, invoke `ce-work` as a subagent passing the full issue content. Skip Steps 3 and 4 — ce-work runs in its own isolated context per issue. After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
+**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. The agent must: read CONTEXT.md and DESIGN.md before starting; implement UI, data layer, API routes, and tests; create a branch, open a PR, run `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer` on the diff, address critical findings, wait for CI, and merge. After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
 
 **If 3 (cascade):** Repeat until zero open issues remain in the phase:
-1. Compute READY set (same classification as above).
+1. Fetch open issues and note the current count. Compute READY set (same classification as above).
 2. If READY is empty but open issues remain: all are blocked — stop and report which are waiting.
-3. For each READY issue in number order: invoke `ce-work` as a subagent.
-4. After each batch completes, re-fetch open issues and recompute READY (newly unblocked issues may now be ready).
+3. For each READY issue in number order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. Each agent must: read CONTEXT.md and DESIGN.md before starting; implement UI, data layer, API routes, and tests; create a branch, open a PR, run `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer` on the diff, address critical findings, wait for CI, and merge.
+4. After all agents in the batch complete, re-fetch open issues. If the open count has not decreased (no issues were closed), stop and report which issues failed — do not loop.
+5. Otherwise, recompute READY (newly unblocked issues may now be ready) and repeat from step 1.
 
-Each `ce-work` subagent runs in its own context — no context budget accumulation in the orchestrating session.
+Each subagent runs in its own isolated context — no context budget accumulation in the orchestrating session.
 
 ---
 
@@ -195,14 +196,24 @@ If a prototype exists and the issue involves UI: identify the prototype screen t
 
 If `DESIGN.md` exists at the project root: read it before implementing any UI. Use the design tokens (colors, typography, spacing, component patterns) defined there. Do not invent a design system — follow what Stitch or the external tool defined.
 
-**If the issue involves UI (screens, components, visual design):**
+**Implementation protocol:**
 
-1. Invoke `ce-frontend-design` first, passing the issue content and the corresponding prototype screen if one exists. Let it implement the UI with design quality, verify via screenshots, and iterate until it matches the expected behavior.
-2. Then invoke `ce-work` for any remaining non-UI logic (backend, tests, integration).
-
-**Otherwise:**
-
-Invoke `ce-work` passing the issue content as the work document. Let ce-work run its full flow: worktree, TDD, review, PR, CI, merge.
+1. Create a branch:
+   ```bash
+   git checkout -b issue-<N>-<slug>
+   ```
+2. Implement end-to-end: UI, data layer, API routes, and tests. Do not defer any layer.
+3. For UI work: follow `DESIGN.md` design tokens if present. Otherwise follow prototype screens. After implementing, take a screenshot and verify it matches the intended design before proceeding.
+4. Run the test suite. Fix all failures before proceeding.
+5. Open a PR:
+   ```bash
+   gh pr create --title "<issue title>" --body "Closes #<N>"
+   ```
+6. Review the diff using compound-engineering reviewer agents via the Agent tool:
+   - Always: `compound-engineering:ce-correctness-reviewer` and `compound-engineering:ce-testing-reviewer`
+   - For large diffs or diffs touching auth, payments, or data mutations: also `compound-engineering:ce-adversarial-reviewer`
+   - Address all critical findings before proceeding.
+7. Wait for CI to pass. Fix any failures.
 
 ## Step 5 — Update CONTEXT.md and ADRs
 
@@ -254,15 +265,21 @@ git push
 gh issue close <N> --comment "Implemented in PR #<PR>. CONTEXT.md updated."
 ```
 
-Move to "Done" in the GitHub Project:
+Move to "Done" in the GitHub Project. If any command fails, skip silently:
 
 ```bash
+PROJECT_NUMBER=$(grep "^project:" .devaing.md | awk '{print $2}')
+OWNER=$(gh api user --jq '.login')
+PROJECT_ID=$(gh project view $PROJECT_NUMBER --owner $OWNER --format json --jq '.id')
+ITEM_ID=$(gh project item-list $PROJECT_NUMBER --owner $OWNER --format json \
+  --jq ".items[] | select(.content.number == <N>) | .id")
+STATUS_FIELD=$(gh project field-list $PROJECT_NUMBER --owner $OWNER --format json \
+  --jq '.fields[] | select(.name == "Status")')
+FIELD_ID=$(echo $STATUS_FIELD | jq -r '.id')
 DONE_ID=$(echo $STATUS_FIELD | jq -r '.options[] | select(.name == "Done") | .id')
 gh project item-edit --id $ITEM_ID --field-id $FIELD_ID \
   --project-id $PROJECT_ID --single-select-option-id $DONE_ID
 ```
-
-(Reuse `$STATUS_FIELD`, `$ITEM_ID`, `$FIELD_ID`, `$PROJECT_ID` from Step 2. If unavailable, skip silently.)
 
 ## Closing
 
