@@ -413,21 +413,25 @@ ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -o '[0-9]*$')
 ISSUE_NODE_ID=$(gh issue view $ISSUE_NUMBER --json id --jq '.id')
 ```
 
-After all issues are created, register dependencies for any issue whose "Blocked by" is not "None":
+After all issues are created, register GitHub-native dependencies via REST API. First fetch the internal integer IDs for all issues (distinct from the display numbers):
 
 ```bash
-# For each blocked issue, get its node ID and its blocker's node ID
-BLOCKER_NODE_ID=$(gh issue view <blocker-number> --json id --jq '.id')
-
-gh api graphql -f query='
-mutation($issue: ID!, $dependsOn: ID!) {
-  addIssueDependency(input: { issueId: $issue, dependsOnId: $dependsOn }) {
-    clientMutationId
-  }
-}' -f issue="$ISSUE_NODE_ID" -f dependsOn="$BLOCKER_NODE_ID"
+gh api "repos/<owner>/<repo>/issues?state=all&per_page=100" \
+  --jq '.[] | "\(.number) \(.id)"'
 ```
 
-Repeat for every blocked issue. If the API call fails (feature not available on the plan), continue silently — the `## Blocked by` text in the body remains as fallback.
+Then for each "B blocked by A" pair:
+
+```bash
+# -F sends issue_id as integer (required — -f sends a string and will fail with 422)
+# Use the internal ID from the fetch above, NOT the display number
+gh api -X POST "repos/<owner>/<repo>/issues/<B-number>/dependencies/blocked_by" \
+  -F "issue_id=<A-internal-id>"
+```
+
+To remove a dependency later: `DELETE /repos/<owner>/<repo>/issues/<B>/dependencies/blocked_by/<A-internal-id>` (path-based, not body).
+
+Repeat for every blocked/blocker pair. If a call fails, continue — the `## Blocked by` text in the body remains as readable fallback for agents.
 
 Commit + push after all issues are created:
 
