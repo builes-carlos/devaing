@@ -1,11 +1,11 @@
 ---
 name: devaing-phase-def
-description: Define a new phase end-to-end: discovery, epics, prototype, review loop, and issue generation. Owns the full definition process — from first question to closed backlog. /devaing-phase-revise is only available after this command closes. Invoked with /devaing-phase-def (no argument needed).
+description: Define a new phase end-to-end: epics, prototype, review loop, and issue generation. Discovery is conditional — runs only when CONTEXT.md is absent or unpopulated (greenfield). Owns the full definition process — from epics to closed backlog. /devaing-phase-revise is only available after this command closes. Invoked with /devaing-phase-def (no argument needed).
 ---
 
 # devaing-phase-def
 
-Define a phase completely: discovery → epics → prototype → review loop → issues.
+Define a phase completely: context validation → epics → prototype → review loop → issues.
 
 This command does not stop until the phase is fully defined (issues generated). Prototype revisions are handled inline — no need to jump to another command. Once issues are created, /devaing-phase-def blocks and /devaing-phase-revise becomes available.
 
@@ -21,7 +21,7 @@ Output immediately, before reading any files:
 Here's what's going to happen:
 
   1. Check current phase state
-  2. Discover what this phase covers
+  2. Validate or build context for this phase
   3. Define and approve the epics
   4. Build the prototype
   5. Review loop — adjust until satisfied
@@ -42,11 +42,11 @@ Read CONTEXT.md `## Phases`.
 
 | `## UX conventions` in CONTEXT.md | Open issues exist | State | Action |
 |---|---|---|---|
-| No | No | Interrupted before prototype | Resume at Step 7 |
-| Yes | No | Prototype built, in review | Resume review loop (Step 7b) |
+| No | No | Interrupted before prototype | Resume at Step 6 |
+| Yes | No | Prototype built, in review | Resume review loop (Step 6b) |
 | — | Yes | Definition closed — active phase | Block |
 
-**Interrupted (no UX conventions, no issues):** Output, then skip to Step 7:
+**Interrupted (no UX conventions, no issues):** Output, then skip to Step 6 (Prototype):
 
 ```
 ⚠️  Phase "<name>" setup was interrupted before the prototype.
@@ -56,7 +56,7 @@ Epics already approved: <epic1>, <epic2>, ...
 Resuming from prototype step. No re-discovery needed.
 ```
 
-**Prototype built, review not finished (UX conventions exist, no issues):** Skip directly to Step 7b (review loop). Do not re-generate the prototype.
+**Prototype built, review not finished (UX conventions exist, no issues):** Skip directly to Step 6b (review loop). Do not re-generate the prototype.
 
 **Active phase (issues exist):** Output, then stop:
 
@@ -76,7 +76,7 @@ Stop. Do not proceed.
 
 ## Step 1 — Phase name and granularity
 
-If invoked from `/devaing-init`: use the phase name provided there. Skip this step.
+If invoked from `/devaing-init`: skip the granularity sub-question only (use the value passed by init). Still ask for the phase name using the "no closed phases" prompt below.
 
 Read `CONTEXT.md ## Phases`. Count closed phases. The new phase number is N = (closed count + 1).
 
@@ -112,36 +112,77 @@ Store as `<granularity>`.
 
 Read `CONTEXT.md` completely. Read `docs/adr/` for recent decisions. If Phase 2+, read closed issues from the previous phase to understand what was already built.
 
-## Step 3 — Model gate (upgrade)
+## Step 3 — Context validation or discovery
+
+---
+
+**Phase 1 — context already populated** (init ran RE scan, or context was set up manually):
+
+Do NOT run grill-me. Output:
+
+```
+Context is established. Here's what I have:
+
+**Product**: <summary from ## Project>
+**Architecture**: <brief from ## Architecture>
+**Key constraints**: <brief from ## Key constraints>
+
+Anything to correct or add before we define the Phase 1 epics?
+```
+
+Wait for response. If corrections given, update CONTEXT.md. Continue to Step 4.
+
+---
+
+**Phase 1 — no context yet** (new project, init ran but no discovery yet) OR **Phase 2+:**
+
+Output and wait:
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║         MODEL UPGRADE RECOMMENDED                           ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Next step (discovery) defines this entire phase.           ║
-║  Consider switching to a more capable model first.          ║
+║  The interview works better with a more capable model.      ║
 ╚══════════════════════════════════════════════════════════════╝
 
-To switch models: /model
+To switch: /model — then come back and answer below.
 
-Type 'continue' when ready.
+Did you switch to a more capable model?
+  y — yes, switched
+  n — no, continuing as-is
 ```
 
-## Step 4 — Discovery
+Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
 
-**Phase 1:** invoke `grill-me` with:
+**If Phase 1 — no context yet**, invoke `grill-me` with:
 
 > "Dump everything you have about <name>. Notes, screenshots, mockups, competitor references, prior work, half-baked ideas — paste text directly here, or if you have files on disk (images, PDFs, docs), add them to the project files first so I can read them. Then tell me everything. I'll read it all and start asking questions."
 
 Do NOT suggest a format. Do NOT ask a specific question yet. Let the user dump everything first, then ask targeted follow-ups.
 
-**Phase 2+:** do NOT run a full grill-me. Ask directly:
+**If Phase 2+**, invoke `grill-me` with:
 
 > "Phase <N-1> is done. Here's what we built: [brief summary from CONTEXT.md and closed issues]. What's new in this phase? What changed? What did we defer that's now in scope? Any new constraints or business decisions since then?"
 
 Run until the user signals done.
 
-## Step 5 — Update CONTEXT.md
+If `<model_upgraded>` is true, output and wait:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL DOWNGRADE SUGGESTED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Interview complete. You can switch back to a lighter model. ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model
+
+Type 'continue' when ready.
+```
+
+Continue to Step 4.
+
+## Step 4 — Update CONTEXT.md
 
 Update glossary, architecture, and constraints with what was learned. Commit:
 
@@ -151,14 +192,14 @@ git commit -m "docs: populate CONTEXT.md from Phase <N> discovery"
 git push
 ```
 
-## Step 6 — Define epics for this phase
+## Step 5 — Define epics for this phase
 
 Synthesize the epic list from discovery + the annotated `## Next phase backlog` in CONTEXT.md. Do NOT re-interview.
 
 Present and wait for approval:
 
 ```
-Based on the discovery, I propose these epics for "<phase-name>":
+Based on the context, I propose these epics for "<phase-name>":
 
 1. **<name>** — <one sentence>
 2. **<name>** — <one sentence>
@@ -203,7 +244,7 @@ git commit -m "docs: define Phase <N> epics"
 git push
 ```
 
-## Step 7 — Prototype
+## Step 6 — Prototype
 
 Read `.devaing.md` for `prototyper:`. Default to `Claude` if not set. Store as `<prototyper>`.
 
@@ -242,7 +283,7 @@ How would you like to proceed?
 ```
 
 - If 1: proceed as Claude prototyper (invoke `prototype` skill).
-- If 2: skip to Step 9 (no UX conventions written).
+- If 2: skip to Step 7 (no UX conventions written).
 - If 3: output the following, then stop:
 
 ```
@@ -306,9 +347,9 @@ git commit -m "docs: UX conventions from prototype — Phase <N>"
 git push
 ```
 
-Then proceed immediately to Step 7b.
+Then proceed immediately to Step 6b.
 
-## Step 7b — Review loop
+## Step 6b — Review loop
 
 This loop runs until the user closes the definition. Do not exit until they confirm.
 
@@ -336,6 +377,7 @@ Wait for response.
 **If 1 (screen or flow):** Ask which epic/screen. Then:
 - Claude prototyper: invoke `prototype` for that epic only, passing the specific feedback. Update `CONTEXT.md ## UX conventions` with any changed patterns. Commit.
 - Stitch: call the relevant `mcp__stitch__*` tool to regenerate the affected screens. Update `DESIGN.md` and `CONTEXT.md ## UX conventions`. Commit.
+- Other MCP: call `<prototyper_tool>` again with the epic name, the affected screen description, and the user's requested changes following `<prototyper_instructions>`. Update `CONTEXT.md ## UX conventions`. Commit.
 
 After adjustment, show the review loop output again.
 
@@ -349,13 +391,17 @@ After adjustment, show the review loop output again.
 
 **If 3 (business logic):** Ask what changed. Update `CONTEXT.md` (glossary, architecture, or constraints). Commit. Show the review loop output again.
 
-**If 4 (looks good):** Proceed to Step 8.
+**If 4 (looks good):** Proceed to Step 7.
 
-## Step 8 — Model gate (downgrade)
+## Step 7 — Model gate (downgrade)
+
+Skip this step if `<model_upgraded>` is set (true or false). The model question was already handled in Step 3: if the user upgraded, the downgrade suggestion was shown immediately after grill-me; if they declined, no downgrade is needed.
+
+Only show the following if `<model_upgraded>` was never set (Phase 1 — context already populated path, where discovery was skipped entirely):
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║         DISCOVERY COMPLETE                                  ║
+║         CONTEXT COMPLETE                                    ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Next: task generation. You can switch to a lighter model.  ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -365,7 +411,7 @@ To switch models: /model
 Type 'continue' when ready.
 ```
 
-## Step 9 — Generate issues
+## Step 8 — Generate issues
 
 For each epic in order, generate all vertical slices calibrated to `<granularity>`:
 
@@ -425,6 +471,36 @@ gh api -X POST "repos/<owner>/<repo>/issues/<B-number>/dependencies/blocked_by" 
 To remove a dependency later: `DELETE /repos/<owner>/<repo>/issues/<B>/dependencies/blocked_by/<A-internal-id>` (path-based, not body).
 
 Repeat for every blocked/blocker pair. If a call fails, continue — the `## Blocked by` text in the body remains as readable fallback for agents.
+
+**Seed migration issues:** after generating all issues for an epic, check whether the epic introduces reference data (predefined messages, catalogs, templates, system configuration, or any content that must exist in the DB before the app functions). If yes, add one additional issue to that epic:
+
+```bash
+gh issue create \
+  --title "Seed migrations: <epic-name>" \
+  --milestone "<epic-name>" \
+  --label "ready-for-agent" \
+  --body "$(cat <<'EOF'
+## What to build
+
+Create versioned seed migrations for all reference data introduced in this epic.
+Use upsert (INSERT ... ON CONFLICT DO UPDATE or ORM equivalent) so seeds are safe to run multiple times.
+Register each executed seed in the `_seed_migrations` table via the seed runner.
+
+## Acceptance criteria
+
+- [ ] Seed files created for all reference data in this epic
+- [ ] Each seed uses upsert — running twice produces no errors and no duplicates
+- [ ] Seeds tracked in `_seed_migrations` table after first run
+- [ ] Seed runner executes them on deploy (npm run seed or equivalent)
+
+## Blocked by
+
+<number of the last issue in this epic — seeds depend on schema being ready>
+EOF
+)"
+```
+
+Skip this issue if the epic has no reference data (pure UI, pure API endpoints with no predefined content).
 
 Commit + push after all issues are created:
 

@@ -52,7 +52,7 @@ If ambiguous, ask the user one question: "Is this in the '<option A>' or '<optio
 ## Step 4 — Create issue
 
 ```bash
-gh issue create \
+ISSUE_URL=$(gh issue create \
   --title "Bug: <concise title>" \
   --milestone "<milestone>" \
   --label "ready-for-agent" \
@@ -83,7 +83,8 @@ gh issue create \
 - [ ] <how to verify the bug is fixed>
 - [ ] No regression in related functionality
 EOF
-)"
+)")
+ISSUE_N=$(echo "$ISSUE_URL" | grep -o '[0-9]*$')
 ```
 
 ## Step 5 — Update CONTEXT.md

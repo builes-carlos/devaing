@@ -10,10 +10,11 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 
 | Skill | Purpose |
 |-------|---------|
-| `/devaing-init` | Bootstrap: repo, CI, discovery, Phase 1 epics, prototype, issues. |
-| `/devaing-phase-def` | Define a phase end-to-end: discovery, epics, prototype, review loop, issue generation. Does not exit until issues are created. |
-| `/devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Blocked until /devaing-phase-def has generated issues. |
-| `/devaing-work` | No arg → dependency-aware issue list → user picks. Issue number or milestone name → mid-flight detection → context check → implement → CONTEXT.md → close. |
+| `/devaing-init` | Bootstrap: repo, CI, CONTEXT.md, Phase 1 epics, prototype, issues. For existing projects: RE scan + grill-me + dev env validation + seeds scaffold. |
+| `/devaing-phase-def` | Define a phase end-to-end: epics, prototype, review loop, issue generation. Generates seed migration issues for epics with reference data. |
+| `/devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Reads ship tags to mark new issues as post-ship additions. |
+| `/devaing-work` | No arg → Structured (dependency-aware issue list) or Hotfix (describe + fix, no process). Updates .env.example when new env vars are added. |
+| `/devaing-ship` | Ship to prod: first deploy (new or adopt existing), incremental deploys from git diff, ordered checklist, git tagging. |
 | `/devaing-bug` | Bug in natural language → structured issue with diagnosis → CONTEXT.md |
 | `/devaing-status` | Snapshot: current phase, per-epic progress, next unblocked task, and the exact command to run next. |
 
@@ -22,8 +23,14 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 ### No PRDs
 to-prd eliminated entirely. PRDs are expensive intermediaries nobody reads. Issues with acceptance criteria are the spec. ADRs capture non-obvious decisions after implementation.
 
-### No quiz loops
-Only two human validations in devaing-init: grill-me (domain) and epic list approval. Everything else the agent executes without asking.
+### init owns "what is this product", phase-def owns "what we build in this phase"
+These two responsibilities are strictly separated. init is the only place that discovers or reverse-engineers the product. phase-def starts from CONTEXT.md as truth and only scopes the phase — it never re-asks what the project is.
+
+For greenfield projects, init creates a blank CONTEXT.md and phase-def runs a full grill-me (the only time grill-me fires). For existing projects, init does a RE scan + validation questionnaire and writes CONTEXT.md from reality before setup even starts. phase-def then finds CONTEXT.md already populated and skips discovery entirely.
+
+For existing projects, init also runs grill-me after the RE scan to capture business context (why it was built, decisions made, where it's going) — not just what the code shows.
+
+This means the only human validations in the full flow are: RE findings confirmation + grill-me (existing projects) or grill-me (greenfield), epic list approval, and the prototype review loop.
 
 ### Milestones = epics
 GitHub milestones group issues by epic. Human navigates by milestone, not flat list.
@@ -77,6 +84,18 @@ If a devaing-work session dies mid-slice (context full, crash, closed window), t
 ### GitHub Projects integration
 Every devaing project gets a linked GitHub Project (created by devaing-init). Issues are added to the Project automatically when created. devaing-work moves cards to "In Progress" when work starts and "Done" when the issue closes. Issue dependencies are registered via the GitHub GraphQL API (GA August 2025) so blockers are visible natively in the issue sidebar and the Project board. The `## Blocked by` text in the issue body remains as a readable fallback.
 
+### Production deployment strategy
+
+Two DB environments: local dev + prod. No staging. No test users in prod.
+
+Reference data (predefined messages, catalogs, configs) lives as versioned seed migrations with upsert. The `_seed_migrations` table tracks what ran, identical to how Prisma handles schema migrations. The seed runner compares files in repo vs. executed rows in the table.
+
+**devaing-ship** is the single ship command regardless of trigger (phase complete, revise additions, hotfix). It derives everything it needs from git state and DB state — no other skill needs to feed it data, with one exception: devaing-work must keep `.env.example` updated when new env vars are added.
+
+Ship tags (`ship/*`) are the deploy markers. The diff from the last ship tag tells devaing-ship exactly what changed. First deploys have no tag and branch into two cases: provision fresh prod, or adopt an existing prod (establish baseline without re-running anything already live).
+
+The ceremony scales to scope: only code changed = one confirmation. Schema migrations or seeds involved = ordered checklist with DB snapshot first.
+
 ## Skills integrated (third-party, not modified)
 
 - `grill-me` → domain discovery (Step 9)
@@ -109,13 +128,39 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 
 ## Flows
 
-### Initial setup (new project)
+### Initial setup
+
+**Greenfield (no prior code):**
 ```
 /devaing-init
+  → model upgrade suggestion (discovery is expensive)
+  → working style questions (granularity, prototyper)
   → auth check + repo create/clone
   → GitHub Project created and linked to repo
-  → triage labels, CI workflow, AGENTS.md, CONTEXT.md, .devaing.md
-  → /devaing-phase-def called for Phase 1
+  → triage labels, CI workflow, AGENTS.md, CONTEXT.md (blank template), .devaing.md
+  → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
+  → dev env validation: confirm scaffolded env runs
+  → model downgrade suggestion
+  → /devaing-phase-def called for Phase 1 (runs full grill-me)
+```
+
+**Existing project (code already present, no devaing setup):**
+```
+/devaing-init
+  → semantic check: CONTEXT.md absent or template + code present
+  → model upgrade suggestion (discovery is expensive)
+  → working style questions (granularity, prototyper)
+  → RE scan: stack detection, structure, key files read
+  → findings summary + validation questionnaire (users, business rules, constraints)
+  → grill-me with RE context (business decisions, constraints, direction)
+  → CONTEXT.md written from reality (not blank template)
+  → contradictions (code vs. corrections) → needs-triage issues
+  → auth check + repo create/clone
+  → GitHub Project, triage labels, CI workflow, AGENTS.md, .devaing.md
+  → dev env validation: confirm local env runs (start command, DB, .env)
+  → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
+  → model downgrade suggestion
+  → /devaing-phase-def called for Phase 1 (skips grill-me, CONTEXT.md already populated)
 ```
 
 ### Define a phase (new or resume)
@@ -123,7 +168,10 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 /devaing-phase-def   (no argument — reads state from CONTEXT.md)
   → detect setup state (interrupted / review-in-progress / active / new)
   → if new: verify previous phase closed, ask phase name
-  → discovery: full grill-me (Phase 1) or incremental interview (Phase 2+)
+  → discovery (conditional):
+      Phase 1 + CONTEXT.md populated → brief "anything to correct?" only
+      Phase 1 + CONTEXT.md absent/template → full grill-me
+      Phase 2+ → incremental interview (what changed since last phase)
   → update CONTEXT.md with learnings
   → define and approve epic list              ← human validation
   → create GitHub milestones
@@ -148,27 +196,51 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 ### Build loop
 ```
 human picks task (or uses /devaing-status to find it)
-→ /devaing-work (no arg): fetch open issues, classify READY vs BLOCKED,
-    show dependency table, user confirms or types a number
-→ /devaing-work <milestone> or #N
+→ /devaing-work (no arg):
+    → choice: Structured or Hotfix
+    → Structured: fetch open issues, classify READY vs BLOCKED,
+        show dependency table, user picks
+    → Hotfix: describe what to fix → ce-work → optional retroactive issue
+→ /devaing-work <milestone> or #N (Structured path)
     → detect mid-flight session (resume if found)
     → context budget check (warn if session already loaded)
     → read DESIGN.md if exists (Stitch design system tokens)
     → if UI: ce-frontend-design (with prototype screen + DESIGN.md) + ce-work
     → if not UI: ce-work directly
-    → merge → CONTEXT.md update → ADR if non-obvious decision
+    → merge → CONTEXT.md update + .env.example if new vars added
+    → ADR if non-obvious decision
     → suggest fresh session for next slice
     → if last issue in milestone: compress milestone in CONTEXT.md
     → if last issue in phase: QA prompt + /improve-codebase-architecture
 ```
 
+### Ship to prod
+```
+/devaing-ship
+  → read CONTEXT.md + .devaing.md for stack and deploy target
+  → check last ship tag (git tag --list "ship/*")
+  → if no tag (first deploy):
+      → prod doesn't exist: provision DB + deploy target + env vars, validate
+      → prod exists: adopt baseline (create _seed_migrations, mark existing
+          seeds as executed, tag ship/baseline)
+  → if tag exists (incremental):
+      → diff from last tag: commits, schema migrations, seed files, .env.example
+      → if only code: quick deploy
+      → if migrations/seeds/env vars: full ordered checklist
+  → execute: DB snapshot → schema migrations → seed migrations → env vars → deploy code → verify
+  → tag release (ship/phase-N, ship/hotfix-YYYYMMDD, etc.)
+  → update CONTEXT.md ## Phases if phase-complete deploy
+```
+
 ### Add feature area
 ```
 /devaing-phase-revise → "New area"
+  → reads ship tags (what's already in prod)
   → 4 scope questions (problem, user, out-of-scope, constraints)
   → evaluate milestone (existing or new)
-  → generate issues directly
+  → generate issues marked as post-ship additions
   → CONTEXT.md update
+  → closing: reminder to /devaing-ship when implemented in dev
 ```
 
 ### Report bug

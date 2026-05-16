@@ -31,6 +31,23 @@ After revising, run /devaing-phase-def to generate the task backlog
 (if tasks don't exist yet) or continue with /devaing-work.
 ```
 
+## Step 0b — Read ship state
+
+Before checking phase state, determine what's already in prod:
+
+```bash
+git tag --list "ship/*" | sort -V
+```
+
+If ship tags exist: store the most recent as `<last-ship-tag>`. This marks what's already in prod.
+If no tags: prod has never been shipped to, or devaing-ship has not been run yet. Store `<last-ship-tag>` = none.
+
+Output one line so the user knows the context:
+
+```
+Last shipped: <last-ship-tag> / not yet shipped to prod
+```
+
 ## Step 0 — Verify phase is open and definition is closed
 
 Read CONTEXT.md `## Phases`. Find the phase with status `In Progress`.
@@ -65,12 +82,13 @@ while the phase is being defined.
 
 Stop.
 
-Check how many issues are already closed in the current phase:
+Read the epic names from the `In Progress` row in `CONTEXT.md ## Phases`. For each epic milestone in the current phase, count closed issues:
 
 ```bash
-gh issue list --milestone "<epic-name>" --state closed --json number,title \
-  --jq 'length'
+gh issue list --milestone "<epic-name>" --state closed --json number --jq 'length'
 ```
+
+Sum the counts across all current-phase epics. Use this total as the "already closed" count. Do not include issues from other phases.
 
 If any issues are already closed (implementation started), warn:
 
@@ -172,7 +190,9 @@ gh api repos/{owner}/{repo}/milestones --method POST \
   --field description="<description>"
 ```
 
-Generate vertical slices in dependency order and publish each as a GitHub issue with `ready-for-agent` label, the same `## What / ## Acceptance criteria / ## Blocked by` body format used by other issues in this project.
+Generate vertical slices in dependency order and publish each as a GitHub issue with `ready-for-agent` label, the same `## What / ## Acceptance criteria / ## Blocked by` body format used by other issues in this project. If `<last-ship-tag>` is set and is not 'none' (i.e., at least one actual ship tag exists), add a note at the top of each issue body: `> Post-ship addition — not in prod as of <last-ship-tag>.`
+
+After all issues are created, register GitHub-native dependencies via REST API (same approach as in devaing-phase-def Step 9): fetch internal integer IDs, then POST to `/issues/<blocked>/dependencies/blocked_by` with `-F issue_id=<blocker-internal-id>`.
 
 Update `CONTEXT.md` if the new area introduces domain terms, architectural components, or constraints not already documented.
 
@@ -220,6 +240,10 @@ Check whether there are any open issues in the current phase milestones.
   /devaing-work #N          Implement a task
   /devaing-bug              Report something broken
   /devaing-phase-revise     Add something not in the current plan (New area)
+
+When the new issues are implemented and tested in dev:
+
+  /devaing-ship             Deploy additions to prod
 
 Not available yet:
 

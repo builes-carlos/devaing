@@ -27,8 +27,8 @@ From what you read, determine:
 
 Run:
 ```bash
-gh issue list --state all --json number,title,state,milestone \
-  --jq '.[] | {number, title, state, milestone: .milestone.title}'
+gh issue list --state all --json number,title,state,milestone,body \
+  --jq '.[] | {number, title, state, milestone: .milestone.title, body}'
 ```
 
 Classify into one of these states:
@@ -82,6 +82,7 @@ Status: No active phase.
 Next step:
 
   /devaing-phase-def         Start Phase <N>
+  /devaing-ship              Deploy current code to prod
 ```
 
 ---
@@ -159,6 +160,7 @@ Phase <N>: "<phase-name>" — All tasks complete ✓
 
 Next step:
 
+  /devaing-ship              Deploy to prod
   /devaing-phase-def         Start Phase <N+1>
 ```
 

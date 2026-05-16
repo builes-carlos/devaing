@@ -1,49 +1,55 @@
 ---
 name: devaing-work
-description: Take a GitHub issue or milestone name and implement the next vertical slice end-to-end. Detects mid-flight sessions and resumes instead of starting over. Wraps /ce-work with mandatory CONTEXT.md update after merge. Invoked with /devaing-work #N or /devaing-work <milestone>.
+description: Take a GitHub issue or milestone name and implement the next vertical slice end-to-end. Detects mid-flight sessions and resumes instead of starting over. Wraps /ce-work with mandatory CONTEXT.md update after merge. Invoked with /devaing-work #N or /devaing-work <milestone>. When invoked with no argument, presents a Structured/Hotfix choice.
 ---
 
 # devaing-work
 
 Implement a vertical slice end-to-end and keep CONTEXT.md alive.
 
-## Opening — Welcome message
+## Opening — Mode selection
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║  devaing-work: <#N or area-name>                            ║
+║  devaing-work                                               ║
 ╚══════════════════════════════════════════════════════════════╝
 
-I'm going to implement the next task end-to-end.
+How do you want to work?
 
-Here's what's going to happen:
-
-  1. Check for any in-progress work that wasn't finished
-  2. Read the task: what to build and how to verify it works
-  3. Implement everything: UI + logic + tests
-  4. Update the project map with what was learned
-  5. Mark the task done
+  1. Structured — pick a ready task from the backlog
+  2. Hotfix     — describe what to fix, no process required
 ```
+
+Wait for response. Store as `<mode>`.
+
+If `<mode>` is **Hotfix**: skip to [Hotfix flow](#hotfix-flow) at the bottom.
+If `<mode>` is **Structured**: continue with Step 1.
 
 ## Step 1 — Detect mid-flight session
 
-Before creating or fetching anything, check if a previous session for this milestone died mid-flight.
+Skip this step if invoked with no argument — the milestone is not known yet. Mid-flight check runs after issue selection in Step 2 (see "If 1 (one)" branch).
 
-**GitHub mode** — look for an open issue with an existing branch:
+**If the issue number `<N>` is known** (invoked with `#N`, or selected from the Step 2 list): search directly for a branch matching that number — do not query the milestone.
+
+```bash
+git branch --list | grep -E "\b<N>\b"
+git worktree list | grep -E "\b<N>\b"
+```
+
+**If only the milestone name is known** (invoked with `<milestone>`): fetch open issues in that milestone, then check for a branch matching each issue's number.
 
 ```bash
 gh issue list --milestone "<milestone>" --state open --json number,title,labels \
   --jq '.[] | select(.labels[].name == "ready-for-agent") | {number, title}'
 
-# For each open issue found, check if a branch exists:
-git branch --list | grep "<issue-slug>"
-git worktree list
+# For each issue number returned:
+git branch --list | grep -E "\b<issue-number>\b"
+git worktree list | grep -E "\b<issue-number>\b"
 ```
 
 **No-GitHub mode** — look for an orphaned branch with unmerged commits:
 
 ```bash
-# Find branches matching the milestone slug that have commits ahead of main
 git branch --list | grep "<milestone-slug>"
 git log main..<branch> --oneline 2>/dev/null
 git worktree list
@@ -102,14 +108,14 @@ How many tasks do you want to implement?
 
 5. Wait for response.
 
-**If 1 (one):** Ask which number. Use the confirmed or typed number as the target and continue to the `#N` path below.
+**If 1 (one):** Ask which number. Use the confirmed or typed number as the target. Then run the Step 1 mid-flight check for this issue's milestone before dispatching. Continue to the `#N` path below.
 
-**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. Pass the full issue content as the work document and instruct the agent to invoke `ce-work` (or `ce-frontend-design` followed by `ce-work` if the issue involves UI). After all complete, run the Step 5/6 post-merge updates for each. Then show the closing summary.
+**If 2 (all ready now):** Collect all READY issue numbers sorted by number. For each in order, spawn an Agent with `isolation: "worktree"` to implement the issue end-to-end. Pass the full issue content as the work document and instruct the agent to run the full devaing-work implementation flow: check for prototype and DESIGN.md, route by issue type (Steps 3-4), update CONTEXT.md, ask the ADR and known-limitations questions, and close the issue (Steps 5-6). Each subagent handles its own post-merge updates and issue close. Then show the closing summary.
 
 **If 3 (cascade):** Repeat until zero open issues remain in the phase:
 1. Fetch open issues and note the current count. Compute READY set (same classification as above).
 2. If READY is empty but open issues remain: all are blocked — stop and report which are waiting.
-3. For each READY issue in number order, spawn an Agent with `isolation: "worktree"` to implement the issue. Pass the full issue content and instruct the agent to invoke `ce-work` (or `ce-frontend-design` followed by `ce-work` if the issue involves UI).
+3. For each READY issue in number order, spawn an Agent with `isolation: "worktree"` to implement the issue. Pass the full issue content and instruct the agent to run the full devaing-work implementation flow: check for prototype and DESIGN.md, route by issue type (Steps 3-4), update CONTEXT.md, ask the ADR and known-limitations questions, and close the issue (Steps 5-6).
 4. After all agents in the batch complete, re-fetch open issues. If the open count has not decreased (no issues were closed), stop and report which issues failed — do not loop.
 5. Otherwise, recompute READY (newly unblocked issues may now be ready) and repeat from step 1.
 
@@ -220,6 +226,8 @@ git add CONTEXT.md
 git commit -m "docs: update CONTEXT.md after closing #<N>"
 git push
 ```
+
+**Env vars:** if any new environment variables were added during implementation, update `.env.example` with the new var names and placeholder values. Never add actual secrets. Commit alongside CONTEXT.md.
 
 Ask two questions:
 
@@ -353,4 +361,60 @@ What's next?
     /devaing-work <area-name>
 
   Fresh session = clean context = better implementation quality.
+```
+
+## Hotfix flow
+
+Only reached when `<mode>` is Hotfix.
+
+```
+Describe what to fix:
+```
+
+Wait for description. Store as `<hotfix-description>`.
+
+Create a working branch:
+
+```bash
+SLUG=$(echo "<hotfix-description>" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | cut -c1-50)
+git checkout -b hotfix/$SLUG
+```
+
+Invoke `ce-work` with the hotfix description as the work document. Let ce-work run its full flow: implement, PR, CI, merge.
+
+After the PR merges, run Step 5 (Update CONTEXT.md) using the hotfix context.
+
+Then ask:
+
+```
+Create a retroactive issue for tracking? (y/n)
+(Recommended — keeps the backlog searchable and the history honest)
+```
+
+If yes:
+
+```bash
+RETROACTIVE_URL=$(gh issue create \
+  --title "Hotfix: <hotfix-description>" \
+  --label "needs-triage" \
+  --body "$(cat <<'EOF'
+## What was fixed
+
+<hotfix-description>
+
+## Resolution
+
+Implemented as hotfix. PR: #<PR>. No issue was created before the fix.
+EOF
+)")
+RETROACTIVE_N=$(echo "$RETROACTIVE_URL" | grep -o '[0-9]*$')
+gh issue close $RETROACTIVE_N --comment "Closed retroactively — implemented in PR #<PR>."
+```
+
+Then output:
+
+```
+✓ Hotfix shipped — PR #<PR> merged.
+
+  → When ready to deploy to prod: /devaing-ship
 ```
