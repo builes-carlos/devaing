@@ -293,43 +293,11 @@ made, what's deferred, where it's going). Not a continuation of above.
 
 ### RE-scan-2b: Business context — grill-me
 
-Output and wait:
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║         MODEL UPGRADE RECOMMENDED                           ║
-╠══════════════════════════════════════════════════════════════╣
-║  The interview works better with a more capable model.      ║
-╚══════════════════════════════════════════════════════════════╝
-
-To switch: /model — then come back and answer below.
-
-Did you switch to a more capable model?
-  y — yes, switched
-  n — no, continuing as-is
-```
-
-Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
-
 Invoke `grill-me` with the RE scan as context:
 
 > "I've analyzed the codebase for <name>. Here's what I found: <RE summary from RE-scan-2>. Now I need to understand the business side. Tell me everything — why this exists, who uses it, what decisions shaped it, what's broken or deferred, and where it's going. Dump everything."
 
 Run until the user signals done. Store responses as `<re-business-context>`.
-
-If `<model_upgraded>` is true, output and wait:
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║         MODEL DOWNGRADE SUGGESTED                           ║
-╠══════════════════════════════════════════════════════════════╣
-║  Interview complete. You can switch back to a lighter model. ║
-╚══════════════════════════════════════════════════════════════╝
-
-To switch: /model
-
-Type 'continue' when ready.
-```
 
 Integrate into CONTEXT.md in RE-scan-3.
 
@@ -731,6 +699,7 @@ tracking: GitHub
 granularity: <granularity>
 prototyper: <prototyper>
 project: <project-number>
+subagent_cli: claude -p --model claude-sonnet-4-6
 
 Runtime-agnostic spec. For Claude Code, use the `/devaing-*` skills directly.
 
@@ -779,31 +748,90 @@ Takes a GitHub issue (`#N`) or milestone name and implements the next vertical s
 3. Updates CONTEXT.md and commits.
 ```
 
+## Step 7b-portable — Portable skills layer
+
+Create the `.devaing/skills/` directory and populate it with the skill bodies. This enables other LLMs (Codex, Aider, Cursor) to follow the same workflow by reading these files.
+
+Skip if `.devaing/skills/` already exists with files (already set up in a prior run).
+
+```bash
+mkdir -p .devaing/skills
+```
+
+Copy body.md files from the installed skill location to the project:
+
+```bash
+SKILL_DIR="$HOME/.claude/skills"
+for skill in work phase-def phase-revise ship bug status; do
+  src="$SKILL_DIR/devaing-$skill/body.md"
+  if [ -f "$src" ]; then
+    cp "$src" ".devaing/skills/$skill.md"
+  fi
+done
+```
+
+Create `.devaing/AGENTS.md` for non-Claude Code agents:
+
+```bash
+cat > .devaing/AGENTS.md << 'EOF'
+# devaing project
+
+This project uses the devaing workflow. When the user invokes a devaing command,
+read and execute the corresponding file in `.devaing/skills/`.
+
+| Command | File |
+|---------|------|
+| devaing-work / implement issue | `.devaing/skills/work.md` |
+| devaing-ship / deploy | `.devaing/skills/ship.md` |
+| devaing-phase-def / define phase | `.devaing/skills/phase-def.md` |
+| devaing-phase-revise / adjust phase | `.devaing/skills/phase-revise.md` |
+| devaing-bug / report bug | `.devaing/skills/bug.md` |
+| devaing-status / project status | `.devaing/skills/status.md` |
+
+Each skill file is self-contained markdown with bash commands. Follow it literally.
+
+Sub-agent CLI: see `.devaing.md` field `subagent_cli`. Default: `claude -p --model claude-sonnet-4-6`.
+For Codex: `codex exec`, for Aider: `aider --message`.
+EOF
+```
+
+If any `cp` above fails (skill not installed): note in the final report which skill files were missing. Do not stop.
+
 ## Step 7c — Dev environment validation
 
 Skip this step if `<re_flow>` is false (greenfield — no code exists yet to validate; the user validates the dev environment after Phase 1 scaffolds the project).
 
-**For `<re_flow>` projects** (existing codebase):
+**For `<re_flow>` projects** (existing codebase): run these checks silently. Stop only if a check fails; continue without output if all pass.
 
-Infer the start command from the stack detected in RE-scan-1 (e.g., `npm run dev`, `uvicorn app.main:app`, `go run .`). Then output and wait:
+**Check 1 — .env:**
 
-```
-Before continuing, let's confirm the dev environment runs.
-
-Detected stack: <stack from RE scan>
-Expected start command: <inferred command>
-
-Please verify:
-  1. Run the start command — it should start without errors
-  2. DB connection works (dev DB is reachable)
-  3. .env file is present and all required vars are set
-
-Fix anything broken now. I'll wait.
-
-Ready? (y/n)
+```bash
+test -f .env && echo "ok" || echo "missing"
 ```
 
-Do not continue until the user confirms.
+If missing: stop with "`.env` is missing. Create it and fill in required vars, then re-run `/devaing-init`."
+
+**Check 2 — DB connection:**
+
+For Prisma projects:
+
+```bash
+npx prisma db pull 2>&1 | head -20
+```
+
+If output contains "error" (case-insensitive) or exit is non-zero: stop with the error output and "Check `DATABASE_URL` in `.env` and confirm the DB is reachable."
+
+For Python/SQLAlchemy or other ORMs: run an equivalent quick connection test if inferable from the stack.
+
+**Check 3 — Code compiles (Node/TypeScript only):**
+
+```bash
+npx tsc --noEmit 2>&1 | tail -20
+```
+
+If exit non-zero: stop with the error output and "Fix typecheck errors before continuing."
+
+If all checks pass: continue to the next step without prompting the user.
 
 
 ## Step 7d — Seeds infrastructure
@@ -876,7 +904,7 @@ Run the migration to create the tracking table in dev:
 npx prisma migrate dev --name add_seed_migrations
 ```
 
-Wait for confirmation the migration ran successfully before continuing.
+If exit code is non-zero: stop and report the full output. Otherwise continue.
 
 **For Python/Alembic projects**, create `db/seeds/runner.py` with equivalent logic using the project's ORM.
 
@@ -895,7 +923,7 @@ If empty: skip, note "no changes".
 Stage only devaing setup files — never use `git add .` as it would include the user's uncommitted work-in-progress code:
 
 ```bash
-git add CONTEXT.md .devaing.md AGENTS.md \
+git add CONTEXT.md .devaing.md .devaing/ AGENTS.md \
   docs/agents/issue-tracker.md docs/agents/triage-labels.md docs/agents/domain.md \
   .github/workflows/ci.yml 2>/dev/null || true
 # Add seeds files if they were created in Step 7d
@@ -920,25 +948,6 @@ git checkout <branch>
 ```
 
 This branch is only ever updated by `devaing-ship`. `devaing-work` merges to `<branch>` and never touches `prod`.
-
-## Step 8b-pre — Model downgrade
-
-Skip if `<re_flow>` is true — model downgrade was already suggested after the grill-me interview.
-
-Output and wait:
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║         SETUP COMPLETE                                      ║
-╠══════════════════════════════════════════════════════════════╣
-║  Project is ready. You can switch to a lighter model        ║
-║  for the next steps.                                        ║
-╚══════════════════════════════════════════════════════════════╝
-
-To switch models: /model
-
-Type 'continue' when ready.
-```
 
 ## Final report
 

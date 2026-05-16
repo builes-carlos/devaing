@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 Two things in one:
-1. **The devaing framework** — six Claude Code skills for hyper-agile product development (`skills/`). Read `STRATEGY.md` for the full framework design.
+1. **The devaing framework** — seven Claude Code skills for hyper-agile product development (`skills/`). Read `STRATEGY.md` for the full framework design.
 2. **A skill development toolkit** — Python scripts for validating, packaging, and optimizing the trigger description of any Claude Code skill (`scripts/`).
 
 ## Commands
@@ -68,17 +68,20 @@ The `CLAUDECODE` env var is stripped before each subprocess call — this is int
 
 | Skill | Responsibility |
 |-------|----------------|
-| `devaing-init` | Bootstrap: repo, GitHub Project, CI, AGENTS.md, CONTEXT.md, Phase 1 via devaing-phase-def |
+| `devaing-init` | Bootstrap: repo, GitHub Project, CI, AGENTS.md, CONTEXT.md, `.devaing/skills/` portable layer, Phase 1 via devaing-phase-def |
 | `devaing-phase-def` | Full phase definition loop: discovery, epics, prototype, review, issue generation. Does not exit until issues are created. Blocks devaing-phase-revise while open. |
 | `devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Blocked until devaing-phase-def has generated issues. |
-| `devaing-work` | Implement one vertical slice end-to-end, update CONTEXT.md, move Project card, close issue |
-| `devaing-bug` | Convert a bug description into a structured issue with diagnosis |
+| `devaing-work` | Implement issues on epic branches via sub-agent. Self-verify (tests + AC) and optional adversarial review before closing. Auto-merge epic to main when milestone closes. |
+| `devaing-ship` | Deploy main to prod: detect changes since last tag, run migrations/seeds, verify env vars, tag release, archive shipped phases to CONTEXT_ARCHIVE.md. |
+| `devaing-bug` | Convert a bug description into a structured issue with diagnosis and regression test criteria |
+| `devaing-status` | Dashboard: current phase state, per-epic progress, next command to run |
 
 Phases are the scoping unit. Each phase runs a full discovery cycle before generating issues. Tracking is always GitHub Issues + GitHub Projects — no local file alternative.
 
 ### What lives where
 
 - `STRATEGY.md` — framework design, decision rationale, flows. Authoritative source. `STRATEGY.html` is a periodic human-facing snapshot, never auto-generated.
-- `skills/<name>/SKILL.md` — each skill's executable spec.
+- `skills/<name>/SKILL.md` — thin adapter (5-10 lines). Claude Code reads this and delegates to `.devaing/skills/<name>.md` in the project, or falls back to `skills/<name>/body.md`.
+- `skills/<name>/body.md` — portable skill body. No frontmatter. `devaing-init` copies these to `.devaing/skills/` in each project so other LLMs (Codex, Aider, Cursor) can follow the same flow. Diverges from SKILL.md only in sub-agent invocation style.
 - `scripts/` — eval/optimize tooling. All scripts are runnable as `python -m scripts.<name>` from repo root.
 - `scripts/__init__.py` — empty, makes `scripts/` a package so cross-script imports work.
