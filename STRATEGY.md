@@ -26,11 +26,11 @@ to-prd eliminated entirely. PRDs are expensive intermediaries nobody reads. Issu
 ### init owns "what is this product", phase-def owns "what we build in this phase"
 These two responsibilities are strictly separated. init is the only place that discovers or reverse-engineers the product. phase-def starts from CONTEXT.md as truth and only scopes the phase — it never re-asks what the project is.
 
-For greenfield projects, init creates a blank CONTEXT.md and phase-def runs a full grill-me (the only time grill-me fires). For existing projects, init does a RE scan + validation questionnaire and writes CONTEXT.md from reality before setup even starts. phase-def then finds CONTEXT.md already populated and skips discovery entirely.
+For greenfield projects, init runs an optional brainstorm (in memory, no file) followed by grill-me, then writes a populated CONTEXT.md before any infrastructure is set up. For existing projects, init does a RE scan + validation questionnaire + grill-me and writes CONTEXT.md from reality. In both cases, CONTEXT.md is fully populated before phase-def ever runs.
 
-For existing projects, init also runs grill-me after the RE scan to capture business context (why it was built, decisions made, where it's going) — not just what the code shows.
+phase-def never runs grill-me. It validates context (brief summary + "anything to correct?") and for Phase 2+ adds one question ("anything changed since last phase that affects scope?"). That's the entire discovery surface in phase-def.
 
-This means the only human validations in the full flow are: RE findings confirmation + grill-me (existing projects) or grill-me (greenfield), epic list approval, and the prototype review loop.
+This means the only human validations in the full flow are: brainstorm/grill-me in init, epic list approval, and the prototype review loop.
 
 ### Milestones = epics
 GitHub milestones group issues by epic. Human navigates by milestone, not flat list.
@@ -152,13 +152,15 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 ```
 /devaing-init
   → working style questions (granularity, prototyper)
-  → auth check + repo create/clone
+  → auth check
+  → product discovery: brainstorm optional (in memory) → grill-me → CONTEXT.md written
+  → repo create/clone
   → GitHub Project created and linked to repo
-  → triage labels, CI workflow, AGENTS.md, CONTEXT.md (blank template), .devaing.md
+  → triage labels, CI workflow, AGENTS.md, .devaing.md
   → .devaing/skills/ created + body.md files copied (portable layer)
   → .devaing/AGENTS.md written (Codex/Aider/Cursor instructions)
   → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
-  → /devaing-phase-def called for Phase 1 (runs full grill-me + model upgrade suggestion)
+  → /devaing-phase-def called for Phase 1 (validates context only, no discovery)
 ```
 
 **Existing project (code already present, no devaing setup):**
@@ -184,11 +186,9 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 /devaing-phase-def   (no argument — reads state from CONTEXT.md)
   → detect setup state (interrupted / review-in-progress / active / new)
   → if new: verify previous phase closed, ask phase name
-  → discovery (conditional):
-      Phase 1 + CONTEXT.md populated → brief "anything to correct?" only
-      Phase 1 + CONTEXT.md absent/template → full grill-me
-      Phase 2+ → incremental interview (what changed since last phase)
-  → update CONTEXT.md with learnings
+  → validate context: brief summary + "anything to correct?"
+      Phase 2+: also "anything changed since last phase that affects scope?"
+  → update CONTEXT.md if corrections given
   → define and approve epic list              ← human validation
   → create GitHub milestones
   → generate prototype via <prototyper> (Claude / Stitch / Other MCP)
