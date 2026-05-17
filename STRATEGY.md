@@ -89,13 +89,21 @@ Each issue is implemented by a sub-agent spawned with a clean context. The paren
 After the sub-agent commits, devaing-work runs the project's test suite (auto-detected: `npm test` / `pytest` / `cargo test`). If tests fail, the user chooses: fix now (spawn another sub-agent with the failure output), document in Known limitations, or revert the commit. Then it reads each `- [ ]` acceptance criterion from the issue and asks for a single y/n/partial confirmation before closing.
 
 ### Adversarial review (from HBX practice)
-HBX pattern: after each implementation commit, a review pass constructs failure scenarios (not pattern-matching against known issues). devaing-work integrates this as an optional step: default `y` when closing the last issue in a milestone (before auto-merge to main), default `n` for intermediate issues. Uses `ce-adversarial-reviewer` on Claude Code; other environments use an inline adversarial prompt.
+HBX pattern: after each implementation commit, a review pass constructs failure scenarios (not pattern-matching against known issues). devaing-work integrates this as an optional step: default `y` when closing the last issue in a milestone (before auto-merge to main), default `n` for intermediate issues. At epic close, the diff reviewed is `main..epic/<slug>` (the full epic), not just the closing commit. Uses `ce-adversarial-reviewer` on Claude Code; other environments pipe an inline adversarial prompt to `subagent_cli`.
+
+When the diff touches migration or seed files, `ce-data-integrity-guardian` runs first (before adversarial review), also with a Claude Code / inline-prompt dual path.
 
 ### GitHub Projects integration
 Every devaing project gets a linked GitHub Project (created by devaing-init). Issues are added to the Project automatically when created. devaing-work moves cards to "In Progress" when work starts and "Done" when the issue closes. No `## Blocked by` entries — order within an epic is captured by issue number (phase-def creates issues in natural implementation order).
 
 ### CONTEXT_ARCHIVE.md for shipped phases
 devaing-ship moves completed phase rows from `CONTEXT.md ## Phases` to `CONTEXT_ARCHIVE.md` after tagging a release. `## Architecture`, `## Domain glossary`, `## Key constraints`, and `## Known limitations` never move — they accumulate. This keeps the active CONTEXT.md lean across many phases while preserving history.
+
+### CONTEXT.md maintenance rules
+Two rules enforced by devaing-work to prevent drift in the living sections:
+
+- `## Architecture`: always edited surgically (update existing sentences to reflect current state). Never appended to — appending creates an archaeology layer that agents read as contradictory truth.
+- `## Known limitations`: items are added after each issue close or adversarial review finding. At epic close, devaing-work reviews the list and asks whether any items were resolved by the epic. Resolved items are removed. This prevents the section from becoming a cemetery of past problems.
 
 ### Portability: thin adapter + body.md
 Each skill is split into two files:

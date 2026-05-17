@@ -225,11 +225,43 @@ All criteria met? (y/n/partial)
 MIGRATION_FILES=$(git diff HEAD~1..HEAD --name-only | grep -E "(migration|prisma/|db/seeds)" | wc -l)
 ```
 
-If `MIGRATION_FILES` > 0: spawn Agent with `subagent_type=compound-engineering:ce-data-integrity-guardian`. Prompt:
+If `MIGRATION_FILES` > 0:
 
-> Review the following migration diff for data integrity issues. Check for: missing constraints, unsafe column changes, data loss risk, transaction boundary problems, and impact on existing rows in production.
-> Diff: <output of `git diff HEAD~1..HEAD` filtered to migration files>
-> Report findings as HIGH / MEDIUM / LOW. HIGH = data loss or corruption risk.
+```bash
+MIGRATION_DIFF=$(git diff HEAD~1..HEAD -- $(git diff HEAD~1..HEAD --name-only | grep -E "(migration|prisma/|db/seeds)"))
+```
+
+Build the review prompt:
+
+```
+INTEGRITY_PROMPT="You are reviewing a database migration diff for production safety.
+
+Diff to review:
+$MIGRATION_DIFF
+
+Check for:
+- Missing NOT NULL constraints on columns with existing rows (will fail unless a default is provided)
+- Unsafe column drops or type changes that truncate or corrupt existing data
+- Missing indexes on new foreign keys
+- Multi-step operations not wrapped in a transaction
+- Seed data that could cause unique constraint violations on re-run (must use upsert)
+- Any operation that cannot be rolled back safely
+
+Report findings as HIGH / MEDIUM / LOW:
+- HIGH: data loss or production migration failure risk
+- MEDIUM: integrity or performance risk that may not surface immediately
+- LOW: non-critical issue
+
+For each finding: one-line description + concrete failure scenario."
+```
+
+**Claude Code:** spawn Agent with `subagent_type=compound-engineering:ce-data-integrity-guardian`, passing the prompt above.
+
+**Other environments:**
+```bash
+SUBAGENT_CLI=$(grep "^subagent_cli:" .devaing.md | sed 's/subagent_cli: *//' 2>/dev/null || echo "claude -p --model claude-sonnet-4-6")
+INTEGRITY_REPORT=$(echo "$INTEGRITY_PROMPT" | $SUBAGENT_CLI)
+```
 
 Process findings the same way as adversarial review findings below (HIGH per-finding, MEDIUM/LOW as table).
 
@@ -260,11 +292,43 @@ REVIEW_DIFF=$(git diff HEAD~1..HEAD)
 REVIEW_SCOPE="the commit closing GitHub issue #<N>"
 ```
 
-Spawn Agent with `subagent_type=compound-engineering:ce-adversarial-reviewer`. Prompt:
+Build the review prompt:
 
-> Review <REVIEW_SCOPE> ("<title>").
-> Issue acceptance criteria: <criteria>.
-> Construct failure scenarios for each changed component. Report findings categorized as HIGH / MEDIUM / LOW severity with a one-line description and a concrete failure scenario for each.
+```
+ADVERSARIAL_PROMPT="You are an adversarial code reviewer. Your goal is to break the implementation —
+not check against known patterns, but actively construct failure scenarios.
+
+Reviewing: <REVIEW_SCOPE> ('<title>')
+Acceptance criteria: <criteria>
+
+Diff:
+$REVIEW_DIFF
+
+For each changed component:
+1. What is the intended behavior?
+2. Construct at least one concrete scenario where this implementation fails silently,
+   fails incorrectly, or produces wrong output under real-world conditions
+   (concurrent users, partial failures, edge case inputs, timing issues, missing data).
+3. Is there a race condition, state mutation, unhandled error path, or incorrect
+   assumption baked in?
+
+Do NOT list what the code does. Find where it breaks.
+
+Report findings as HIGH / MEDIUM / LOW:
+- HIGH: exploitable, causes data loss, or silent corruption
+- MEDIUM: incorrect behavior under non-trivial conditions
+- LOW: minor reliability concern or edge case
+
+For each finding: one-line description + the specific failure scenario."
+```
+
+**Claude Code:** spawn Agent with `subagent_type=compound-engineering:ce-adversarial-reviewer`, passing the prompt above.
+
+**Other environments:**
+```bash
+SUBAGENT_CLI=$(grep "^subagent_cli:" .devaing.md | sed 's/subagent_cli: *//' 2>/dev/null || echo "claude -p --model claude-sonnet-4-6")
+ADVERSARIAL_REPORT=$(echo "$ADVERSARIAL_PROMPT" | $SUBAGENT_CLI)
+```
 
 Process findings:
 - HIGH findings: for each one, ask:
@@ -284,7 +348,11 @@ Process findings:
   Document all in Known limitations? (y/n)
   ```
 
-**CONTEXT.md update:** if `<implementation-report>` mentions new domain terms, new architecture components, new integrations, or new constraints: update CONTEXT.md.
+**CONTEXT.md update:**
+- New domain terms: add rows to `## Domain glossary`.
+- Architecture changes: **edit the existing `## Architecture` section surgically** — update the description to reflect current state. Do not append; rewrite the affected sentence or paragraph.
+- New integrations or key constraints: add to the relevant section.
+- Only update what actually changed. Do not rewrite the whole file.
 
 **Known limitations:** if the report mentions anything intentionally left incomplete or broken: add to `## Known limitations` in CONTEXT.md:
 
@@ -342,7 +410,26 @@ If `OPEN_IN_MILESTONE` > 0: skip to "Per-issue close" below.
 
 If 0 (epic complete):
 
-1. Create PR from `epic/<slug>` to main:
+1. **Known limitations review:** before merging, check whether this epic resolved any existing limitations:
+
+   ```bash
+   grep -A 200 "^## Known limitations" CONTEXT.md | grep "^\- \*\*"
+   ```
+
+   If there are entries, ask:
+   ```
+   Known limitations — did this epic resolve any of these?
+   (list the items by name, or 'none')
+   ```
+
+   If items were resolved: remove or update them in CONTEXT.md. Commit:
+   ```bash
+   git add CONTEXT.md
+   git commit -m "docs: resolve known limitations addressed in epic/<slug>"
+   git push
+   ```
+
+3. Create PR from `epic/<slug>` to main:
    ```bash
    CLOSED_ISSUES=$(gh issue list --milestone "<milestone>" --state closed \
      --json number --jq '[.[] | "#\(.number)"] | join(", ")')
@@ -351,13 +438,13 @@ If 0 (epic complete):
      --body "Closes milestone '<milestone>'. Issues: $CLOSED_ISSUES")
    ```
 
-2. Auto-merge the PR to main (one dev owns the epic, no peer review by default — real QA happens at phase end):
+4. Auto-merge the PR to main (one dev owns the epic, no peer review by default — real QA happens at phase end):
    ```bash
    PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
    gh pr merge $PR_NUMBER --merge --delete-branch
    ```
 
-3. Sync local main:
+5. Sync local main:
    ```bash
    git checkout main && git pull
    ```
