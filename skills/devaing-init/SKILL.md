@@ -105,8 +105,8 @@ Let's set up your project so it's ready to build, step by step.
 
 Here's what's going to happen:
 
-  1. Set up the repo, CI, and project files
-  2. Set up the dev environment
+  1. Capture what you're building (problem + vision)
+  2. Set up the repo, CI, and project files
   3. Then: /devaing-phase-def to define Phase 1 (epics, prototype, tasks)
 
 When we're done, your project is wired up and ready to define.
@@ -236,6 +236,87 @@ Steps to connect Stitch:
 
 Re-run /devaing-init when you're back.
 ```
+
+## Step 1b — Product discovery (greenfield only)
+
+Skip entirely if `<re_flow>` is true (RE scan will capture context in RE-scan-2b).
+
+First, check GitHub auth before the discovery session starts:
+
+```bash
+gh auth status 2>/dev/null
+```
+
+If not authenticated, stop: "Run `gh auth login` before continuing. Then re-run `/devaing-init`."
+
+Now start discovery. Ask:
+
+```
+Before setting up infrastructure, let's capture what you're building.
+
+Do you want to brainstorm first, or go straight to the interview?
+
+  1. Brainstorm first — explore the problem space (use if the idea is still fuzzy)
+  2. Go straight to the interview
+```
+
+Wait for response.
+
+**If 1 (brainstorm):** Open a free-form session in memory — no files written:
+
+> "Tell me everything — half-formed ideas, apps you admire, what's broken about existing solutions, who you're building for. Paste notes, links, anything. We'll make sense of it together."
+
+Run 2-4 back-and-forth exchanges. Store the synthesis as `<brainstorm-context>`. No file is written. Then continue to the interview below.
+
+**Interview (always runs after brainstorm or directly):**
+
+Invoke `grill-me` with:
+
+> "I'm setting up a new project called <name>. <If brainstorm ran: 'Here's what we explored so far: <brainstorm-context>.'>
+> Now let's capture it properly: what is this, who is it for, what problem does it solve, what are the key constraints, what's out of scope? Ask targeted questions."
+
+Run until the user signals done. Store all context as `<discovery-context>`.
+
+Write CONTEXT.md immediately from discovery (do not leave it blank):
+
+```markdown
+# Context
+
+## Project
+
+<one sentence describing what this project does and for whom, from discovery>
+
+## Domain glossary
+
+| Term | Definition |
+|------|------------|
+| <term from discovery> | <definition> |
+
+## Architecture
+
+> To be defined during Phase 1. Stack TBD.
+
+## Key constraints
+
+<constraints from discovery — legal, technical, business>
+
+## Known limitations
+
+> Problems we are aware of and consciously not fixing yet.
+> Format: what the problem is | why it's deferred | what would trigger the fix | operational guidance for the current state.
+
+## Phases
+
+| Phase | Name | Status | Epics |
+|-------|------|--------|-------|
+
+## Next phase backlog
+
+> Epics identified but deferred to future phases.
+> Format: Phase N — Epic name — one-line description
+```
+
+Store flag `<context_written> = true` so Step 7 skips rewriting CONTEXT.md.
 
 ## Step RE-scan — Codebase reverse engineering (D-RE flow only)
 
@@ -646,6 +727,7 @@ jobs:
 Skip if any of the following:
 - CONTEXT.md is already **populated** (as defined in Step B)
 - `<re_flow>` is set (CONTEXT.md was already written in RE-scan-3)
+- `<context_written>` is true (CONTEXT.md was written in Step 1b from discovery)
 
 Otherwise write the blank template:
 
@@ -734,12 +816,11 @@ Takes a GitHub issue (`#N`) or milestone name and implements the next vertical s
 
 1. Verifies previous phase is closed (no open issues).
 2. Asks phase name and granularity.
-3. For Phase 1 with populated CONTEXT.md: brief validation only, no full discovery.
-4. For Phase 1 greenfield (CONTEXT.md absent or template): full discovery interview.
-5. For Phase 2+: incremental interview about what changed since the last phase.
-6. Defines epics for this phase, annotates next-phase backlog.
-7. Builds or extends the prototype (living skeleton — never deleted).
-8. Generates all issues calibrated to granularity.
+3. Validates context — brief summary + "anything to correct?" No discovery (that's /devaing-init).
+4. For Phase 2+: also asks "anything changed since last phase that affects scope?" One question only.
+5. Defines epics for this phase, annotates next-phase backlog.
+6. Builds or extends the prototype (living skeleton — never deleted).
+7. Generates all issues calibrated to granularity.
 
 ## devaing-phase-revise — Adjust the current phase
 

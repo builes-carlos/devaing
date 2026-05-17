@@ -47,3 +47,134 @@ Classify into one of these states:
 
 Then show the relevant block for the detected state:
 
+---
+
+### not-initialized
+
+```
+Status: Not initialized
+
+No devaing setup found in this project.
+
+Next step:
+
+  /devaing-init
+```
+
+---
+
+### no-active-phase
+
+List closed phases, then:
+
+```
+Closed phases:
+  Phase 1 "MVP" — Complete
+  ...
+
+Status: No active phase.
+
+Next step:
+
+  /devaing-phase-def         Start Phase <N>
+  /devaing-ship              Deploy current code to prod
+```
+
+---
+
+### setup-interrupted
+
+```
+Phase <N>: "<phase-name>" — In Progress
+Epics: <epic1>, <epic2>, ...
+
+Status: Phase setup was interrupted before the prototype was built.
+        Discovery and epics are done. Prototype step never ran.
+
+Next step:
+
+  /devaing-phase-def         Resume — will pick up at prototype step
+```
+
+---
+
+### prototype-pending
+
+```
+Phase <N>: "<phase-name>" — In Progress
+Epics: <epic1>, <epic2>, ...
+Prototyper: <prototyper>
+
+Status: Prototype is ready. Waiting for your review before generating tasks.
+
+Next steps:
+
+  /devaing-phase-def         Approved — generate the task backlog
+  /devaing-phase-revise      Need to adjust something first
+```
+
+If prototyper is Stitch, add: `Review screens at the URLs in CONTEXT.md ## UX conventions.`
+
+---
+
+### implementing
+
+Group issues by milestone. For each epic compute: total issues, closed issues, open issues.
+
+Show per-epic progress with remaining count, then next task:
+
+```
+Phase <N>: "<phase-name>" — In Progress
+
+Progress:
+  <epic-name>     ✓ <closed>/<total>   (<open> remaining)
+  <epic-name>     ○ <closed>/<total>   (<open> remaining)
+  ...
+  Total: <done>/<total> tasks complete (<pct>%)
+
+Next task:
+
+  [ ] #<N> — <one-line description>
+      Epic: <epic-name>
+      Blocked by: <None or #N>
+
+Next step:
+
+  /devaing-work #<N>
+```
+
+Derive progress from GitHub issues grouped by milestone. Show the first unblocked pending task as "Next task". A task is unblocked if its "Blocked by" is None or all its blockers are closed.
+
+---
+
+### phase-complete
+
+```
+Phase <N>: "<phase-name>" — All tasks complete ✓
+
+  <done> tasks implemented across <N> epics.
+
+Next step:
+
+  /devaing-ship              Deploy to prod
+  /devaing-phase-def         Start Phase <N+1>
+```
+
+---
+
+## Closing
+
+After the state block, always append a command reference. This is the same regardless of project state:
+
+```
+─────────────────────────────────────────────────────────────────
+
+Commands
+
+  SETUP    /devaing-init            One-time project setup
+  PHASE    /devaing-phase-def       Discovery → epics → prototype → issues
+  BUILD    /devaing-work            Implement next task (shows dependency list)
+  ADJUST   /devaing-phase-revise    Fix scope, add new area, revise prototype
+  REPORT   /devaing-bug "..."       Report something broken
+  STATUS   /devaing-status          This screen
+```

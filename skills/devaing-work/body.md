@@ -219,6 +219,20 @@ All criteria met? (y/n/partial)
 - `n`: offer Fix now / Document / Revert (same flow as test failure above).
 - `partial`: ask which criteria are unmet. Apply Document to those — they go to Known limitations.
 
+**Data integrity check (conditional):**
+
+```bash
+MIGRATION_FILES=$(git diff HEAD~1..HEAD --name-only | grep -E "(migration|prisma/|db/seeds)" | wc -l)
+```
+
+If `MIGRATION_FILES` > 0: spawn Agent with `subagent_type=compound-engineering:ce-data-integrity-guardian`. Prompt:
+
+> Review the following migration diff for data integrity issues. Check for: missing constraints, unsafe column changes, data loss risk, transaction boundary problems, and impact on existing rows in production.
+> Diff: <output of `git diff HEAD~1..HEAD` filtered to migration files>
+> Report findings as HIGH / MEDIUM / LOW. HIGH = data loss or corruption risk.
+
+Process findings the same way as adversarial review findings below (HIGH per-finding, MEDIUM/LOW as table).
+
 **Adversarial review:**
 
 Check whether this is the last open issue in the milestone:
@@ -234,9 +248,21 @@ Default `y` if `OPEN_IN_MILESTONE` = 0 (last issue — worth reviewing before au
 Run adversarial review on this commit? (y/n, default <y/n>)
 ```
 
-If `y`: spawn Agent with `subagent_type=compound-engineering:ce-adversarial-reviewer`. Prompt:
+If `y`: get the full epic diff:
 
-> Review the diff of the commit closing GitHub issue #<N> ("<title>") on branch `epic/<slug>`.
+```bash
+# For epic close (OPEN_IN_MILESTONE = 0): review the entire epic
+REVIEW_DIFF=$(git diff main..epic/<slug>)
+REVIEW_SCOPE="the full epic branch `epic/<slug>` (all commits, not just the last)"
+
+# For intermediate issues (OPEN_IN_MILESTONE > 0): review only this commit
+REVIEW_DIFF=$(git diff HEAD~1..HEAD)
+REVIEW_SCOPE="the commit closing GitHub issue #<N>"
+```
+
+Spawn Agent with `subagent_type=compound-engineering:ce-adversarial-reviewer`. Prompt:
+
+> Review <REVIEW_SCOPE> ("<title>").
 > Issue acceptance criteria: <criteria>.
 > Construct failure scenarios for each changed component. Report findings categorized as HIGH / MEDIUM / LOW severity with a one-line description and a concrete failure scenario for each.
 

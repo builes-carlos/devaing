@@ -16,7 +16,7 @@ Output immediately, before reading any files:
 Here's what's going to happen:
 
   1. Check current phase state
-  2. Validate or build context for this phase
+  2. Validate context
   3. Define and approve the epics
   4. Build the prototype
   5. Review loop — adjust until satisfied
@@ -107,5 +107,340 @@ Store as `<granularity>`.
 
 Read `CONTEXT.md` completely. Read `docs/adr/` for recent decisions. If Phase 2+, read closed issues from the previous phase to understand what was already built.
 
-## Step 3 — Context validation or discovery
+## Step 3 — Validate context
 
+Show a brief summary and ask for corrections. Do not run grill-me — discovery is owned by `/devaing-init`.
+
+Output:
+
+```
+Context summary:
+
+**Product**: <one sentence from ## Project>
+**Architecture**: <brief from ## Architecture>
+**Key constraints**: <brief from ## Key constraints>
+
+Anything to correct or add before we define the epics?
+```
+
+Wait for response. If corrections given, update the relevant sections of CONTEXT.md.
+
+**Phase 2+ only** — additionally ask:
+
+```
+Since Phase <N-1>, did anything change that affects scope?
+(new constraints, pivot, decisions made during implementation, new users or use cases)
+```
+
+Wait for response. If something changed, update CONTEXT.md accordingly.
+
+Continue to Step 4.
+
+## Step 4 — Update CONTEXT.md
+
+If any updates were made in Step 3, commit:
+
+```bash
+git add CONTEXT.md
+git commit -m "docs: update context before Phase <N> scoping"
+git push
+```
+
+## Step 5 — Define epics for this phase
+
+Synthesize the epic list from the validated context + the annotated `## Next phase backlog` in CONTEXT.md. Do NOT re-interview.
+
+Present and wait for approval:
+
+```
+Based on the context, I propose these epics for "<phase-name>":
+
+1. **<name>** — <one sentence>
+2. **<name>** — <one sentence>
+...
+
+Anything missing, wrong, or out of scope for this phase?
+```
+
+After approval:
+
+1. Update `CONTEXT.md ## Phases`:
+
+```markdown
+## Phases
+
+| Phase | Name | Status | Epics |
+|-------|------|--------|-------|
+| <N> | <phase-name> | In Progress | <epic1>, <epic2>, ... |
+```
+
+2. If next-phase epics were identified, annotate in `CONTEXT.md ## Next phase backlog`:
+
+```markdown
+## Next phase backlog
+
+- Phase <N+1> — <epic name> — <one-line description>
+```
+
+3. Create one milestone per epic:
+
+```bash
+gh api repos/<owner>/<name>/milestones --method POST \
+  --field title="<epic-name>" \
+  --field description="<epic-description>"
+```
+
+4. Commit:
+
+```bash
+git add CONTEXT.md
+git commit -m "docs: define Phase <N> epics"
+git push
+```
+
+## Step 6 — Prototype
+
+Read `.devaing.md` for `prototyper:`. Default to `Claude` if not set. Store as `<prototyper>`.
+
+---
+
+### If `<prototyper>` is Claude
+
+**Phase 1:** for each epic with UI, ask:
+
+```
+Epic "<name>" has UI. Prototype the interaction before generating issues? (y/n)
+```
+
+If yes: invoke `prototype` for that epic. After validation, document agreed UX decisions in `CONTEXT.md ## UX conventions`. Keep the prototype as a **living skeleton** — mock screens are replaced progressively by `/devaing-work` slices. Do not delete unimplemented screens.
+
+Prototype screens must be stateless and presentational: no local state, no API calls, no hardcoded data beyond display fixtures.
+
+**Phase 2+:** the prototype skeleton already exists. For each epic with UI in this phase, add the new screens as mocks to the existing skeleton. Do not touch screens already implemented in previous phases.
+
+---
+
+### If `<prototyper>` is Stitch
+
+Before generating screens, verify the Stitch MCP is available by checking if any `mcp__stitch__*` tools are accessible.
+
+If Stitch MCP is NOT available, output and wait:
+
+```
+⚠️  Stitch MCP is not connected.
+
+How would you like to proceed?
+
+  1. Build with Claude   — prototype skill builds stateless mock screens now.
+  2. Skip prototype      — go straight to task generation. Add UX later with /devaing-phase-revise.
+  3. Connect Stitch first — instructions below.
+```
+
+- If 1: proceed as Claude prototyper (invoke `prototype` skill).
+- If 2: skip to Step 7 (no UX conventions written).
+- If 3: output the following, then stop:
+
+```
+Steps to connect Stitch:
+
+  1. Create a free account: stitch.withgoogle.com
+  2. Generate an API key: Settings → API Keys → New key
+  3. Save the key so Claude Code can read it:
+
+     If you use the Claude Code desktop app (Windows):
+       Add an "env" block to ~/.claude/settings.json:
+         "env": { "STITCH_API_KEY": "<your-key>" }
+       Then restart the app.
+
+     If you launch Claude Code from a terminal (claude CLI):
+       Windows:  setx STITCH_API_KEY "<your-key>"
+       Mac/Linux: echo 'export STITCH_API_KEY="<your-key>"' >> ~/.zshrc
+       Then close the terminal, open a new one, and relaunch.
+
+     Note: setx does NOT work for the desktop app — the app does not
+     inherit terminal environment variables.
+
+~/.claude/.mcp.json must have the Stitch entry. Run /devaing-init
+if you haven't already — it writes it automatically.
+
+Re-run /devaing-phase-def when you're back.
+```
+
+If Stitch MCP IS available, use the Stitch MCP tools to generate screens for each epic with UI.
+
+For each epic with UI, call the available `mcp__stitch__*` tools to:
+1. Create a Stitch project (or reuse the existing one for this project)
+2. Generate screens covering the main user flows for this epic, passing:
+   - Epic name and description
+   - Relevant constraints and UX context from `CONTEXT.md`
+3. Collect the returned screen URLs
+
+After all epics are done:
+- Export `DESIGN.md` from the Stitch project (use the available export tool)
+- Save it to the project root as `DESIGN.md`
+- Extract the design system (colors, typography, spacing, component patterns) from `DESIGN.md`
+- Document as `CONTEXT.md ## UX conventions`
+
+Share the screen URLs with the user so they can review.
+
+**Phase 2+:** add new screens to the existing Stitch project. Do not regenerate screens from previous phases.
+
+---
+
+### If `<prototyper>` is Other MCP
+
+For each epic with UI, call `<prototyper_tool>` following `<prototyper_instructions>`. Document results in `CONTEXT.md ## UX conventions`.
+
+---
+
+Commit:
+
+```bash
+git add CONTEXT.md DESIGN.md
+git commit -m "docs: UX conventions from prototype — Phase <N>"
+git push
+```
+
+Then proceed immediately to Step 6b.
+
+## Step 6b — Review loop
+
+This loop runs until the user closes the definition. Do not exit until they confirm.
+
+Output:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  Prototype ready. Review and adjust before generating tasks. ║
+╚══════════════════════════════════════════════════════════════╝
+
+Epics: <epic1>, <epic2>, ...
+<If Stitch: show screen URLs>
+<If Claude: "Prototype is running — review the screens in the browser">
+
+Anything to adjust?
+
+  1. A screen or flow is wrong
+  2. An epic is missing, wrong, or should be cut
+  3. Business logic needs a correction
+  4. Looks good — generate tasks
+```
+
+Wait for response.
+
+**If 1 (screen or flow):** Ask which epic/screen. Then:
+- Claude prototyper: invoke `prototype` for that epic only, passing the specific feedback. Update `CONTEXT.md ## UX conventions` with any changed patterns. Commit.
+- Stitch: call the relevant `mcp__stitch__*` tool to regenerate the affected screens. Update `DESIGN.md` and `CONTEXT.md ## UX conventions`. Commit.
+- Other MCP: call `<prototyper_tool>` again with the epic name, the affected screen description, and the user's requested changes following `<prototyper_instructions>`. Update `CONTEXT.md ## UX conventions`. Commit.
+
+After adjustment, show the review loop output again.
+
+**If 2 (epic change):** Ask what to add, remove, or modify. Apply changes:
+- Update `CONTEXT.md ## Phases` epic list.
+- Add or delete the GitHub milestone accordingly.
+- If an epic was removed, note which prototype screens (if any) are now orphaned.
+- Commit.
+
+After adjustment, show the review loop output again.
+
+**If 3 (business logic):** Ask what changed. Update `CONTEXT.md` (glossary, architecture, or constraints). Commit. Show the review loop output again.
+
+**If 4 (looks good):** Proceed to Step 7.
+
+## Step 7 — Generate issues
+
+For each epic in order, generate all vertical slices calibrated to `<granularity>`:
+
+- **Broad**: 2-4 slices per epic. 2-3 high-level acceptance criteria.
+- **Balanced**: 3-6 slices per epic. 4-6 specific acceptance criteria.
+- **Detailed**: 6-12 slices per epic. Full acceptance criteria including negative paths.
+
+Read `project:` from `.devaing.md`. Store as `<project-number>`.
+
+Publish issues in dependency order. For each issue:
+
+```bash
+ISSUE_URL=$(gh issue create \
+  --title "<title>" \
+  --milestone "<epic-name>" \
+  --label "ready-for-agent" \
+  --body "$(cat <<'EOF'
+## What to build
+
+<end-to-end behavior, not layer-by-layer. No file paths.>
+
+## Acceptance criteria
+
+- [ ] <criterion>
+
+## Blocked by
+
+<#N or "None - can start immediately">
+EOF
+)")
+
+gh project item-add <project-number> --owner <owner> --url "$ISSUE_URL"
+```
+
+**Seed migration issues:** after generating all issues for an epic, check whether the epic introduces reference data (predefined messages, catalogs, templates, system configuration, or any content that must exist in the DB before the app functions). If yes, add one additional issue to that epic:
+
+```bash
+gh issue create \
+  --title "Seed migrations: <epic-name>" \
+  --milestone "<epic-name>" \
+  --label "ready-for-agent" \
+  --body "$(cat <<'EOF'
+## What to build
+
+Create versioned seed migrations for all reference data introduced in this epic.
+Use upsert (INSERT ... ON CONFLICT DO UPDATE or ORM equivalent) so seeds are safe to run multiple times.
+Register each executed seed in the `_seed_migrations` table via the seed runner.
+
+## Acceptance criteria
+
+- [ ] Seed files created for all reference data in this epic
+- [ ] Each seed uses upsert — running twice produces no errors and no duplicates
+- [ ] Seeds tracked in `_seed_migrations` table after first run
+- [ ] Seed runner executes them on deploy (npm run seed or equivalent)
+
+## Blocked by
+
+<number of the last issue in this epic — seeds depend on schema being ready>
+EOF
+)"
+```
+
+Skip this issue if the epic has no reference data (pure UI, pure API endpoints with no predefined content).
+
+Commit + push after all issues are created:
+
+```bash
+git add CONTEXT.md
+git commit -m "docs: generate Phase <N> issues (<granularity>)"
+git push
+```
+
+## Closing
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  Phase <N> "<phase-name>" — backlog ready, implementation    ║
+║  starts now.                                                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+<N> tasks generated across <epic-count> epics. Nothing is built yet.
+Start with the first unblocked task:
+
+  /devaing-work #N          Implement a task end-to-end
+
+Other commands:
+
+  /devaing-phase-revise     Adjust scope, prototype, or business logic
+  /devaing-bug              Report something broken
+  /devaing-phase-revise     Add something not in the current plan (New area)
+
+Not available yet:
+
+  /devaing-phase-def        Blocked — Phase <N> has open tasks.
+                            Close all tasks first, then start the next phase.
+```
