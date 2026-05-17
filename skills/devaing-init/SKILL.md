@@ -249,6 +249,24 @@ gh auth status 2>/dev/null
 
 If not authenticated, stop: "Run `gh auth login` before continuing. Then re-run `/devaing-init`."
 
+Now show the model upgrade prompt before any discovery work (brainstorm or grill-me both benefit from a more capable model):
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL UPGRADE RECOMMENDED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Discovery works better with a more capable model.          ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model — then come back and answer below.
+
+Did you switch to a more capable model?
+  y — yes, switched
+  n — no, continuing as-is
+```
+
+Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
+
 Now start discovery. Ask:
 
 ```
@@ -318,9 +336,41 @@ Write CONTEXT.md immediately from discovery (do not leave it blank):
 
 Store flag `<context_written> = true` so Step 7 skips rewriting CONTEXT.md.
 
+If `<model_upgraded>` is true, show the downgrade prompt before continuing:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL DOWNGRADE SUGGESTED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Discovery complete. You can switch back to a lighter model. ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model
+
+Type 'continue' when ready.
+```
+
 ## Step RE-scan — Codebase reverse engineering (D-RE flow only)
 
 Skip this entire section if `<re_flow>` is not set.
+
+Before starting, show the model upgrade prompt — the RE scan and grill-me that follow both benefit from a more capable model:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL UPGRADE RECOMMENDED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Discovery works better with a more capable model.          ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model — then come back and answer below.
+
+Did you switch to a more capable model?
+  y — yes, switched
+  n — no, continuing as-is
+```
+
+Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
 
 ### RE-scan-1: Read the codebase
 
@@ -379,6 +429,20 @@ Invoke `grill-me` with the RE scan as context:
 > "I've analyzed the codebase for <name>. Here's what I found: <RE summary from RE-scan-2>. Now I need to understand the business side. Tell me everything — why this exists, who uses it, what decisions shaped it, what's broken or deferred, and where it's going. Dump everything."
 
 Run until the user signals done. Store responses as `<re-business-context>`.
+
+If `<model_upgraded>` is true, show the downgrade prompt before continuing:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL DOWNGRADE SUGGESTED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Discovery complete. You can switch back to a lighter model. ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model
+
+Type 'continue' when ready.
+```
 
 Integrate into CONTEXT.md in RE-scan-3.
 
