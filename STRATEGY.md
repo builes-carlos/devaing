@@ -10,13 +10,13 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 
 | Skill | Purpose |
 |-------|---------|
-| `/devaing-init` | Bootstrap: repo, CI, CONTEXT.md, Phase 1 epics, prototype, issues. For existing projects: RE scan + grill-me + dev env validation + seeds scaffold. |
+| `/devaing-init` | Bootstrap: repo, CI, CONTEXT.md, `.devaing/skills/` portable layer, Phase 1 via phase-def. For existing projects: RE scan + grill-me + dev env validation + seeds scaffold. |
 | `/devaing-phase-def` | Define a phase end-to-end: epics, prototype, review loop, issue generation. Generates seed migration issues for epics with reference data. |
 | `/devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Reads ship tags to mark new issues as post-ship additions. |
-| `/devaing-work` | No arg → Structured (dependency-aware issue list) or Hotfix (describe + fix, no process). Updates .env.example when new env vars are added. |
-| `/devaing-ship` | Ship to prod: first deploy (new or adopt existing), incremental deploys from git diff, ordered checklist, git tagging. |
-| `/devaing-bug` | Bug in natural language → structured issue with diagnosis → CONTEXT.md |
-| `/devaing-status` | Snapshot: current phase, per-epic progress, next unblocked task, and the exact command to run next. |
+| `/devaing-work` | Implement GitHub issues on epic branches via sub-agent. Self-verify (tests + AC), optional adversarial review, auto-merge epic to main at close. Hotfix flow included. |
+| `/devaing-ship` | Ship to prod: first deploy (new or adopt existing), incremental deploys from git diff, ordered checklist, git tagging, archive shipped phases to CONTEXT_ARCHIVE.md. |
+| `/devaing-bug` | Bug in natural language → structured issue with diagnosis + regression test criteria → CONTEXT.md |
+| `/devaing-status` | Snapshot: current phase, per-epic progress, next task, exact command to run next. |
 
 ## Key design decisions
 
@@ -43,8 +43,15 @@ To prevent context rot from accumulated slice-by-slice notes, CONTEXT.md is comp
 ### Known limitations section in CONTEXT.md (from HBX/senior-dev practice)
 Distinct from ADRs (decisions made) and key constraints (non-negotiable limits). Captures problems we are aware of and consciously not fixing yet: what the problem is, why it's deferred, what would trigger the fix, and operational guidance for the current state. devaing-work prompts for this at close alongside the ADR question.
 
+### Epic branches + ownership lock
+One branch per milestone (`epic/<slug>`). One person per epic — the first developer to claim an issue in the milestone becomes the owner. Lock is implemented via GitHub issue assignment: devaing-work assigns the issue at claim time and checks existing assignees before starting. If another user owns the epic, the developer is redirected to an available epic.
+
+Parallelism happens between epics, not within them: Dev A on `epic/auth`, Dev B on `epic/billing`. This eliminates merge conflicts within the epic — only one person commits to the branch.
+
+Branch lifecycle: created lazily when the first issue of the epic is claimed. Auto-merged to main when the last issue closes. Branch deleted after merge.
+
 ### Working mode choice
-After discovery, the user picks how issues are created: Progressive (devaing-work creates slices as it goes, no GitHub issues at init time), Backlog (first unblocked slice per epic), or Complete (all issues for the current phase upfront). Scope is always bounded by the current phase — future phases are defined when their phase starts. The framework adapts to session style.
+After the opening issue list, the user picks: One (single issue), All (all issues in the epic), Cascade (implement all epics in sequence), or Hotfix (off-backlog fix). Cascade repeats until zero open issues remain in the phase. Hotfix uses a separate `hotfix/<slug>` branch and auto-merges without issue tracking (retroactive issue optional).
 
 ### Prototype as living skeleton
 UI prototypes are not deleted after UX validation. They survive as navigation skeletons. Each devaing-work slice replaces one mock screen with real implementation. The rest stays intact as scaffolding for future slices. UX decisions persist in CONTEXT.md under `## UX conventions`.
@@ -75,14 +82,27 @@ devaing-phase-def detects setup state at every invocation, enabling safe re-entr
 | Yes | No | Prototype built, review in progress | Resume review loop |
 | — | Yes | Definition closed — active phase | Block |
 
-### Context rot awareness (from GSD)
-Context quality degrades predictably: peak at 0-30%, rushes at 50%+, hallucinates at 70%+. devaing-work addresses this in two places: (1) warns before dispatching to ce-work if the session is already loaded, (2) suggests a fresh session after each closed slice.
+### Sub-agent with fresh context (from GSD)
+Each issue is implemented by a sub-agent spawned with a clean context. The parent skill passes a filtered CONTEXT.md (only `## Project`, `## Domain glossary`, `## Architecture`, `## Key constraints` — not Phases history) plus the full issue content. The sub-agent commits and reports back. This isolates context rot to the sub-agent, not the orchestrating session.
 
-### Mid-flight session recovery (from gstack)
-If a devaing-work session dies mid-slice (context full, crash, closed window), the next invocation detects the orphaned work and offers to resume. Finds open issue with existing branch matching the milestone slug.
+### Self-verification before closing
+After the sub-agent commits, devaing-work runs the project's test suite (auto-detected: `npm test` / `pytest` / `cargo test`). If tests fail, the user chooses: fix now (spawn another sub-agent with the failure output), document in Known limitations, or revert the commit. Then it reads each `- [ ]` acceptance criterion from the issue and asks for a single y/n/partial confirmation before closing.
+
+### Adversarial review (from HBX practice)
+HBX pattern: after each implementation commit, a review pass constructs failure scenarios (not pattern-matching against known issues). devaing-work integrates this as an optional step: default `y` when closing the last issue in a milestone (before auto-merge to main), default `n` for intermediate issues. Uses `ce-adversarial-reviewer` on Claude Code; other environments use an inline adversarial prompt.
 
 ### GitHub Projects integration
-Every devaing project gets a linked GitHub Project (created by devaing-init). Issues are added to the Project automatically when created. devaing-work moves cards to "In Progress" when work starts and "Done" when the issue closes. Issue dependencies are registered via the GitHub GraphQL API (GA August 2025) so blockers are visible natively in the issue sidebar and the Project board. The `## Blocked by` text in the issue body remains as a readable fallback.
+Every devaing project gets a linked GitHub Project (created by devaing-init). Issues are added to the Project automatically when created. devaing-work moves cards to "In Progress" when work starts and "Done" when the issue closes. No `## Blocked by` entries — order within an epic is captured by issue number (phase-def creates issues in natural implementation order).
+
+### CONTEXT_ARCHIVE.md for shipped phases
+devaing-ship moves completed phase rows from `CONTEXT.md ## Phases` to `CONTEXT_ARCHIVE.md` after tagging a release. `## Architecture`, `## Domain glossary`, `## Key constraints`, and `## Known limitations` never move — they accumulate. This keeps the active CONTEXT.md lean across many phases while preserving history.
+
+### Portability: thin adapter + body.md
+Each skill is split into two files:
+- `SKILL.md` — thin adapter (5-10 lines): reads `.devaing/skills/<name>.md` from the project, falls back to `body.md` in the same directory.
+- `body.md` — portable body: full flow, no frontmatter, sub-agent invocation described tool-agnostically.
+
+`devaing-init` copies the body.md files from the plugin dir to `.devaing/skills/` in each project, and writes `.devaing/AGENTS.md` so Codex, Aider, and Cursor can follow the same workflow. The `subagent_cli:` field in `.devaing.md` (default: `claude -p --model claude-sonnet-4-6`) lets the user swap models or tools for sub-agent invocations without touching the skill files.
 
 ### Production deployment strategy
 
@@ -98,12 +118,10 @@ The ceremony scales to scope: only code changed = one confirmation. Schema migra
 
 ## Skills integrated (third-party, not modified)
 
-- `grill-me` → domain discovery (Step 9)
-- `prototype` → UI validation before issue generation (Step 9d)
-- `ce-work` → implementation engine inside devaing-work
-- `ce-frontend-design` → UI issues routed here first in devaing-work
+- `grill-me` → domain discovery inside devaing-phase-def and devaing-init RE scan
+- `prototype` → UI validation before issue generation inside devaing-phase-def
+- `compound-engineering:ce-adversarial-reviewer` → adversarial review in devaing-work Step 3 (Claude Code only; other environments use inline prompt)
 - `diagnose` → hard bugs in devaing-bug when cause is not obvious
-- `improve-codebase-architecture` → suggested every 2-3 milestones at close
 
 ## Documentation format
 
@@ -133,22 +151,20 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 **Greenfield (no prior code):**
 ```
 /devaing-init
-  → model upgrade suggestion (discovery is expensive)
   → working style questions (granularity, prototyper)
   → auth check + repo create/clone
   → GitHub Project created and linked to repo
   → triage labels, CI workflow, AGENTS.md, CONTEXT.md (blank template), .devaing.md
+  → .devaing/skills/ created + body.md files copied (portable layer)
+  → .devaing/AGENTS.md written (Codex/Aider/Cursor instructions)
   → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
-  → dev env validation: confirm scaffolded env runs
-  → model downgrade suggestion
-  → /devaing-phase-def called for Phase 1 (runs full grill-me)
+  → /devaing-phase-def called for Phase 1 (runs full grill-me + model upgrade suggestion)
 ```
 
 **Existing project (code already present, no devaing setup):**
 ```
 /devaing-init
   → semantic check: CONTEXT.md absent or template + code present
-  → model upgrade suggestion (discovery is expensive)
   → working style questions (granularity, prototyper)
   → RE scan: stack detection, structure, key files read
   → findings summary + validation questionnaire (users, business rules, constraints)
@@ -157,10 +173,10 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
   → contradictions (code vs. corrections) → needs-triage issues
   → auth check + repo create/clone
   → GitHub Project, triage labels, CI workflow, AGENTS.md, .devaing.md
-  → dev env validation: confirm local env runs (start command, DB, .env)
+  → .devaing/skills/ created + body.md files copied (portable layer)
+  → dev env validation: .env check, DB connection, typecheck
   → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
-  → model downgrade suggestion
-  → /devaing-phase-def called for Phase 1 (skips grill-me, CONTEXT.md already populated)
+  → output: ready for /devaing-phase-def (Phase 2) or /devaing-ship
 ```
 
 ### Define a phase (new or resume)
@@ -180,7 +196,7 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
   → review loop (inline):
       adjust screens / epics / business logic as many times as needed
       ← human validation (iterative)
-  → "looks good" → generate issues → register dependencies via GitHub API
+  → "looks good" → generate issues
   → add all issues to GitHub Project
   → definition closed — /devaing-phase-revise now available
 ```
@@ -197,21 +213,31 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 ```
 human picks task (or uses /devaing-status to find it)
 → /devaing-work (no arg):
-    → choice: Structured or Hotfix
-    → Structured: fetch open issues, classify READY vs BLOCKED,
-        show dependency table, user picks
-    → Hotfix: describe what to fix → ce-work → optional retroactive issue
+    → choice: One / All / Cascade / Hotfix
+    → Hotfix: describe fix → sub-agent via subagent_cli → optional retroactive issue
 → /devaing-work <milestone> or #N (Structured path)
-    → detect mid-flight session (resume if found)
-    → context budget check (warn if session already loaded)
-    → read DESIGN.md if exists (Stitch design system tokens)
-    → if UI: ce-frontend-design (with prototype screen + DESIGN.md) + ce-work
-    → if not UI: ce-work directly
-    → merge → CONTEXT.md update + .env.example if new vars added
-    → ADR if non-obvious decision
-    → suggest fresh session for next slice
-    → if last issue in milestone: compress milestone in CONTEXT.md
-    → if last issue in phase: QA prompt + /improve-codebase-architecture
+    Step 1 — Claim:
+        fetch open issues for milestone, show READY vs BLOCKED table
+        user picks (or Cascade picks next unblocked)
+        assign issue to self (epic ownership lock via GitHub assignment)
+        create epic/<slug> branch lazily if first issue in milestone
+    Step 2 — Implement:
+        read DESIGN.md if exists (Stitch design system tokens)
+        spawn sub-agent via subagent_cli with filtered CONTEXT.md
+            (only ## Project, ## Domain glossary, ## Architecture, ## Key constraints)
+        sub-agent commits directly to epic branch
+    Step 3 — Verify and close:
+        self-verification: detect test command (npm test / pytest / cargo test),
+            run it, validate each AC from issue (y/n/partial)
+            on failure: Fix now (spawn sub-agent with failure output) / Document / Revert
+        adversarial review: default y if last issue in epic, default n otherwise
+            spawn ce-adversarial-reviewer (or inline prompt for other LLMs)
+            triage HIGH per-finding, MEDIUM/LOW as table → document in Known limitations
+        CONTEXT.md update + .env.example if new env vars added
+        push epic branch, close issue, move Project card to Done
+    Closing checks:
+        if last issue in epic: auto-merge epic branch to main, delete branch
+        if last issue in phase: compress phase in CONTEXT.md
 ```
 
 ### Ship to prod
@@ -229,7 +255,10 @@ human picks task (or uses /devaing-status to find it)
       → if migrations/seeds/env vars: full ordered checklist
   → execute: DB snapshot → schema migrations → seed migrations → env vars → deploy code → verify
   → tag release (ship/phase-N, ship/hotfix-YYYYMMDD, etc.)
-  → update CONTEXT.md ## Phases if phase-complete deploy
+  → if phase-complete deploy:
+      → mark phase Status = Complete in CONTEXT.md ## Phases
+      → move phase row to CONTEXT_ARCHIVE.md (create if absent)
+      → commit both files
 ```
 
 ### Add feature area
