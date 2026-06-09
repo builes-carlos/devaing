@@ -96,6 +96,18 @@ git push
 
 If nothing new emerged, skip.
 
+If the bug itself is a pattern — the wrong implementation looked plausible from reading existing code — also append to `CLAUDE.md ## Tactical anti-patterns`:
+
+```
+- **<name>**: <what the wrong pattern looks like> → <correct pattern>. [Why: <one-line reason>]
+```
+
+```bash
+git add CLAUDE.md
+git commit -m "docs: add tactical anti-pattern surfaced by bug #N"
+git push
+```
+
 ## Closing
 
 ```

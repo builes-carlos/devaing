@@ -11,6 +11,7 @@ for skill in "$REPO_DIR"/skills/devaing-*/; do
   dest="$SKILLS_DIR/$name"
   mkdir -p "$dest"
   cp "$skill/SKILL.md" "$dest/SKILL.md"
+  [ -f "$skill/body.md" ] && cp "$skill/body.md" "$dest/body.md"
   echo "  ✓ $name"
 done
 

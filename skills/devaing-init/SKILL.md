@@ -49,8 +49,18 @@ CONTEXT.md quality is irrelevant when `.devaing.md` is absent — a vibe-coded p
 
 **Step C — Already initialized.** Do the following, then stop:
 
-1. Run `gh issue list --state open --json number,title,milestone --jq '.[] | "#\(.number) [\(.milestone.title)] \(.title)"'` to get open issues grouped by milestone.
-2. Output the message below. Do not continue past this point.
+1. Silently upgrade `.devaing/skills/` for any skill body that is missing (forward-compatible with projects initialized before a skill was added):
+
+```bash
+SKILL_DIR="$HOME/.claude/skills"
+for skill in work phase-def phase-revise ship bug help director; do
+  [ -f ".devaing/skills/$skill.md" ] || \
+    cp "$SKILL_DIR/devaing-$skill/body.md" ".devaing/skills/$skill.md" 2>/dev/null || true
+done
+```
+
+2. Run `gh issue list --state open --json number,title,milestone --jq '.[] | "#\(.number) [\(.milestone.title)] \(.title)"'` to get open issues grouped by milestone.
+3. Output the message below. Do not continue past this point.
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -73,9 +83,10 @@ To see dependencies between tasks:
 
 Other commands:
 
+  /devaing-director         Project state, health audit, and next step
   /devaing-phase-revise     Adjust scope, prototype, or business logic
   /devaing-bug "..."        Report something broken
-  /devaing-phase-revise     Add something not in the current plan (New area)
+  /devaing-help             Framework overview and command reference
 ```
 
 **Step C2 — Init complete, no phases yet.** CONTEXT.md is populated, `.devaing.md` is valid, but no phases defined. Init completed normally in a prior session — phase definition was never run. Do not assume interruption.
@@ -89,8 +100,9 @@ Resolve the project name. Output, then stop:
 
 Project is initialized. What do you want to do next?
 
-  /devaing-phase-def    Define Phase 1 (epics, prototype, tasks)
-  /devaing-ship         Set up and deploy to prod
+  /devaing-phase-def      Define Phase 1 (epics, prototype, tasks)
+  /devaing-ship           Set up and deploy to prod
+  /devaing-director       Project state and health audit
 ```
 
 
@@ -241,6 +253,8 @@ Re-run /devaing-init when you're back.
 
 Skip entirely if `<re_flow>` is true (RE scan will capture context in RE-scan-2b).
 
+**Scope:** this discovery captures the product — what it is, who it's for, what problem it solves. It does NOT define Phase 1. Phase 1 scope is defined later in `/devaing-phase-def`, which runs its own grill-me focused on what to build first.
+
 First, check GitHub auth before the discovery session starts:
 
 ```bash
@@ -249,7 +263,20 @@ gh auth status 2>/dev/null
 
 If not authenticated, stop: "Run `gh auth login` before continuing. Then re-run `/devaing-init`."
 
-Now show the model upgrade prompt before any discovery work (brainstorm or grill-me both benefit from a more capable model):
+Ask the seed question:
+
+```
+¿Qué hace esta app a alto nivel?
+```
+
+Wait for response. Store as `<seed>`. If the answer is vague (one word, or no mention of who the users are or what problem it solves), ask up to 2 follow-up questions — one at a time, stop as soon as enough context is gathered:
+
+1. "¿Para quién es?"
+2. "¿Qué problema específico resuelve?"
+
+Append any follow-up answers to `<seed>`.
+
+Now show the model upgrade prompt before the interview:
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
@@ -267,31 +294,13 @@ Did you switch to a more capable model?
 
 Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
 
-Now start discovery. Ask:
-
-```
-Before setting up infrastructure, let's capture what you're building.
-
-Do you want to brainstorm first, or go straight to the interview?
-
-  1. Brainstorm first — explore the problem space (use if the idea is still fuzzy)
-  2. Go straight to the interview
-```
-
-Wait for response.
-
-**If 1 (brainstorm):** Open a free-form session in memory — no files written:
-
-> "Tell me everything — half-formed ideas, apps you admire, what's broken about existing solutions, who you're building for. Paste notes, links, anything. We'll make sense of it together."
-
-Run 2-4 back-and-forth exchanges. Store the synthesis as `<brainstorm-context>`. No file is written. Then continue to the interview below.
-
-**Interview (always runs after brainstorm or directly):**
-
 Invoke `grill-me` with:
 
-> "I'm setting up a new project called <name>. <If brainstorm ran: 'Here's what we explored so far: <brainstorm-context>.'>
-> Now let's capture it properly: what is this, who is it for, what problem does it solve, what are the key constraints, what's out of scope? Ask targeted questions."
+> "I'm setting up a new project called <name>. Here's what I know so far: <seed>.
+>
+> Granularity: <granularity>. Calibrate question depth: Broad = 3-5 focused questions covering problem, user, and core scope. Balanced = 6-10 questions adding constraints and key flows. Detailed = go deep on every persona, edge case, and technical constraint.
+>
+> Now capture it properly: what is this, who is it for, what problem does it solve, what are the key constraints, what's out of scope? Ask targeted questions based on what you already know — do not repeat what I already answered."
 
 Run until the user signals done. Store all context as `<discovery-context>`.
 
@@ -406,9 +415,11 @@ A few things the code can't tell me:
 1. Who are the primary users of this system?
 2. What business rules are most important that aren't obvious from the code?
 3. Any constraints I should know about (legal, performance, integrations, third-party limits)?
+4. What bugs or mistakes have you already seen repeated in this codebase?
+   (patterns that looked plausible but were wrong — for CLAUDE.md Tactical anti-patterns)
 ```
 
-Wait for response. Store as `<re-validation>`.
+Wait for response. Store as `<re-validation>`. Store Q4 answers separately as `<re-antipatterns>`.
 
 Output immediately — do not skip, do not continue to the next step without doing this:
 
@@ -426,7 +437,11 @@ made, what's deferred, where it's going). Not a continuation of above.
 
 Invoke `grill-me` with the RE scan as context:
 
-> "I've analyzed the codebase for <name>. Here's what I found: <RE summary from RE-scan-2>. Now I need to understand the business side. Tell me everything — why this exists, who uses it, what decisions shaped it, what's broken or deferred, and where it's going. Dump everything."
+> "I've analyzed the codebase for <name>. Here's what I found: <RE summary from RE-scan-2>.
+>
+> Granularity: <granularity>. Calibrate question depth: Broad = 3-5 focused questions. Balanced = 6-10 questions. Detailed = go deep on every decision, constraint, and deferred work.
+>
+> Now I need to understand the business side: why this exists, who uses it, what decisions shaped it, what's broken or deferred, and where it's going. Ask targeted questions based on what the codebase already reveals."
 
 Run until the user signals done. Store responses as `<re-business-context>`.
 
@@ -487,6 +502,29 @@ Write `CONTEXT.md` at the project root, combining RE findings, corrections, and 
 > Epics identified but deferred to future phases.
 > Format: Phase N — Epic name — one-line description
 ```
+
+After writing CONTEXT.md, also update `CLAUDE.md` if it exists:
+
+```bash
+test -f CLAUDE.md && echo "exists" || echo "missing"
+```
+
+**If it exists:**
+
+- If `## Critical Patterns` section is absent: append it:
+  ```markdown
+  ## Critical Patterns
+
+  > Not prose — for each pattern easy to misuse, show the wrong snippet and the correct one.
+  ```
+- If `<re-antipatterns>` is non-empty: append entries to `## Tactical anti-patterns` (create the section if absent):
+  ```markdown
+  ## Tactical anti-patterns
+
+  - **<name>**: <wrong pattern> → <correct pattern>. [Why: <reason>]
+  ```
+
+**If CLAUDE.md doesn't exist:** note in the final report. These sections should be added when the developer creates CLAUDE.md.
 
 The Phase 1 "Pre-devaing / Complete" entry represents everything built before devaing was introduced. This leaves the project in a state where `/devaing-phase-def` can define the next phase, and `/devaing-ship` can deploy what exists.
 
@@ -907,7 +945,7 @@ Copy body.md files from the installed skill location to the project:
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills"
-for skill in work phase-def phase-revise ship bug status; do
+for skill in work phase-def phase-revise ship bug help director; do
   src="$SKILL_DIR/devaing-$skill/body.md"
   if [ -f "$src" ]; then
     cp "$src" ".devaing/skills/$skill.md"
@@ -931,7 +969,8 @@ read and execute the corresponding file in `.devaing/skills/`.
 | devaing-phase-def / define phase | `.devaing/skills/phase-def.md` |
 | devaing-phase-revise / adjust phase | `.devaing/skills/phase-revise.md` |
 | devaing-bug / report bug | `.devaing/skills/bug.md` |
-| devaing-status / project status | `.devaing/skills/status.md` |
+| devaing-director / project state + orchestrator | `.devaing/skills/director.md` |
+| devaing-help / framework reference | `.devaing/skills/help.md` |
 
 Each skill file is self-contained markdown with bash commands. Follow it literally.
 
@@ -942,7 +981,45 @@ EOF
 
 If any `cp` above fails (skill not installed): note in the final report which skill files were missing. Do not stop.
 
-## Step 7c — Dev environment validation
+## Step 7c — CHECKPOINTS.md
+
+Skip if `CHECKPOINTS.md` already exists at the project root.
+
+Otherwise write it:
+
+```markdown
+# Checkpoints — Health audit
+
+> Objective criteria for project health. devaing-director audits these on every run.
+> Run manually when returning to a project after a long break.
+
+## C1 — Setup integrity
+- [ ] CONTEXT.md exists at project root with populated ## Project section
+- [ ] .devaing.md exists with fields: granularity, project, prototyper
+- [ ] AGENTS.md contains devaing execution section (references devaing-work)
+- [ ] .devaing/skills/ contains all skill body files
+
+## C2 — Phase coherence
+- [ ] At most one phase has status "In Progress" in CONTEXT.md ## Phases
+- [ ] No closed GitHub milestone has open issues
+
+## C3 — Epic coherence
+- [ ] All open GitHub issues are assigned to a milestone (no orphans)
+
+## C4 — Branch coherence
+- [ ] prod branch exists (created by devaing-init, only updated by devaing-ship)
+- [ ] No direct work commits on master outside merges from epic/* or hotfix/*
+
+## C5 — Documentation coherence
+- [ ] If a phase is In Progress, at least one GitHub milestone is open
+- [ ] CONTEXT_ARCHIVE.md exists if any phase has been shipped
+
+## C6 — Context size
+- [ ] CONTEXT.md is under 200 lines
+      (if not: move feature implementation details to docs/features/<slug>.md)
+```
+
+## Step 7d — Dev environment validation
 
 Skip this step if `<re_flow>` is false (greenfield — no code exists yet to validate; the user validates the dev environment after Phase 1 scaffolds the project).
 
@@ -1057,6 +1134,37 @@ If exit code is non-zero: stop and report the full output. Otherwise continue.
 
 Create a migration to add the `_seed_migrations` table if not using Prisma (where it's managed via `schema.prisma`).
 
+## Step 7f — Operational skills
+
+Ask:
+
+```
+Which project-specific operations will you repeat most? (select any, or skip)
+
+  a) push / deploy flow — commit + push branches, trigger deploy
+  b) database migrations — create, apply locally, run in production
+  c) new feature scaffold — model + route + UI with project conventions
+  d) debug errors — follow request→response flow for this stack
+  e) code / component review — checklist for this project's patterns
+  f) other: ___
+```
+
+For each selected: create `.claude/skills/<name>/SKILL.md` pre-filled with the project's stack and conventions from CONTEXT.md and CLAUDE.md. Use 3–5 steps maximum. Bake in project-specific details: branch names, DB connection pattern, deploy URL, anti-patterns from `## Tactical anti-patterns`.
+
+```yaml
+---
+name: <kebab-name>
+description: <one-line — what this does for <project-name>>
+---
+
+# <name>
+
+## Step 1 — <first action>
+...
+```
+
+If the user selects "skip" or no options: skip silently.
+
 ## Step 8 — Commit and push
 
 ```bash
@@ -1068,11 +1176,13 @@ If empty: skip, note "no changes".
 Stage only devaing setup files — never use `git add .` as it would include the user's uncommitted work-in-progress code:
 
 ```bash
-git add CONTEXT.md .devaing.md .devaing/ AGENTS.md \
+git add CONTEXT.md CHECKPOINTS.md .devaing.md .devaing/ AGENTS.md \
   docs/agents/issue-tracker.md docs/agents/triage-labels.md docs/agents/domain.md \
   .github/workflows/ci.yml 2>/dev/null || true
-# Add seeds files if they were created in Step 7d
+# Add seeds files if they were created in Step 7e
 git add prisma/seeds/ db/seeds/ scripts/seeds/ 2>/dev/null || true
+# Add operational skills if they were created in Step 7f
+git add .claude/skills/ 2>/dev/null || true
 git diff --cached --quiet && echo "nothing to commit" || \
 git commit -m "chore: devaing project setup
 
@@ -1106,7 +1216,10 @@ This branch is only ever updated by `devaing-ship`. `devaing-work` merges to `<b
 | Compound Engineering | installed / already installed / manual required |
 | ci.yml | created / already existed |
 | CONTEXT.md | created from RE scan / created blank / already existed |
+| CHECKPOINTS.md | created / already existed |
 | .devaing.md | created / already existed |
+| Operational skills | N created / skipped |
+| CLAUDE.md | Critical Patterns added / Tactical anti-patterns added / not found |
 | Contradictions | N issues created / none |
 | Commit | N files / no changes |
 

@@ -8,7 +8,7 @@ For adversarial review, Claude Code can additionally use `subagent_type=compound
 
 # devaing-work
 
-Implement GitHub issues on epic branches. One person per epic (lock by issue assignment). PRs created and auto-merged to main when the epic closes. devaing-ship deploys main to prod.
+Implement GitHub issues on epic branches. One person per epic (lock by issue assignment). PRs created and merged to the phase integration branch when the epic closes. devaing-ship merges the phase branch to main and deploys.
 
 ## Opening — Issue selection
 
@@ -18,7 +18,7 @@ Fetch open issues grouped by milestone:
 gh issue list --state open --json number,title,milestone,assignees --jq 'sort_by(.number)'
 ```
 
-Identify the active phase from `CONTEXT.md ## Phases` (the row with Status `In Progress`). All issues in milestones of that phase are READY.
+Identify the active phase from `CONTEXT.md ## Phases` (the row with Status `In Progress`). All issues in milestones of that phase are READY. Extract the phase number from that row. Store as `<phase-num>`. The integration branch for this phase is `phase-<phase-num>`.
 
 For each milestone in the active phase, compute its owner — the assignee of any open or recently-closed issue in that milestone:
 
@@ -124,9 +124,9 @@ LOCAL=$(git branch --list epic/<slug>)
 REMOTE=$(git ls-remote --heads origin epic/<slug>)
 ```
 
-- Both empty: create new branch from main.
+- Both empty: create new branch from the phase integration branch.
   ```bash
-  git checkout main && git pull
+  git checkout phase-<phase-num> && git pull
   git checkout -b epic/<slug>
   git push -u origin epic/<slug>
   ```
@@ -284,7 +284,7 @@ If `y`: get the full epic diff:
 
 ```bash
 # For epic close (OPEN_IN_MILESTONE = 0): review the entire epic
-REVIEW_DIFF=$(git diff main..epic/<slug>)
+REVIEW_DIFF=$(git diff phase-<phase-num>..epic/<slug>)
 REVIEW_SCOPE="the full epic branch `epic/<slug>` (all commits, not just the last)"
 
 # For intermediate issues (OPEN_IN_MILESTONE > 0): review only this commit
@@ -352,6 +352,7 @@ Process findings:
 - New domain terms: add rows to `## Domain glossary`.
 - Architecture changes: **edit the existing `## Architecture` section surgically** — update the description to reflect current state. Do not append; rewrite the affected sentence or paragraph.
 - New integrations or key constraints: add to the relevant section.
+- Feature implementation details (file paths, SQL specifics, edge cases, state machines): write to `docs/features/<slug>.md`. Add one line to CONTEXT.md `## Features implemented` (or create the section): `- **<Feature name>**: one-line description → \`docs/features/<slug>.md\``. Do NOT put implementation detail in CONTEXT.md.
 - Only update what actually changed. Do not rewrite the whole file.
 
 **Known limitations:** if the report mentions anything intentionally left incomplete or broken: add to `## Known limitations` in CONTEXT.md:
@@ -366,6 +367,29 @@ If CONTEXT.md changed:
 git add CONTEXT.md
 git commit -m "docs: update CONTEXT.md after #<N>"
 ```
+
+**Tactical anti-patterns capture (conditional):**
+
+If this issue involved a fix commit that corrected a plausible-but-wrong pattern, a workaround that must not be replicated, or an adversarial finding that revealed a subtle incorrect assumption — ask:
+
+```
+Did this issue surface a code pattern that future agents should NOT copy?
+(a wrong-looking-correct workaround, a constraint invisible from reading code, a plausible mistake)
+Describe briefly, or skip:
+```
+
+If described: append to `CLAUDE.md ## Tactical anti-patterns`:
+
+```
+- **<name>**: <what the wrong pattern looks like> → <correct pattern>. [Why: <one-line reason>]
+```
+
+```bash
+git add CLAUDE.md
+git commit -m "docs: add tactical anti-pattern from #<N>"
+```
+
+If nothing new, skip.
 
 **Push epic branch:**
 
@@ -433,7 +457,7 @@ If 0 (epic complete):
    ```bash
    CLOSED_ISSUES=$(gh issue list --milestone "<milestone>" --state closed \
      --json number --jq '[.[] | "#\(.number)"] | join(", ")')
-   PR_URL=$(gh pr create --base main --head epic/<slug> \
+   PR_URL=$(gh pr create --base phase-<phase-num> --head epic/<slug> \
      --title "Epic: <milestone>" \
      --body "Closes milestone '<milestone>'. Issues: $CLOSED_ISSUES")
    ```

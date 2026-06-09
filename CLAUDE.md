@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this repo is
 
 Two things in one:
-1. **The devaing framework** — seven Claude Code skills for hyper-agile product development (`skills/`). Read `STRATEGY.md` for the full framework design.
+1. **The devaing framework** — eight Claude Code skills for hyper-agile product development (`skills/`). Read `STRATEGY.md` for the full framework design.
 2. **A skill development toolkit** — Python scripts for validating, packaging, and optimizing the trigger description of any Claude Code skill (`scripts/`).
 
 ## Commands
@@ -68,15 +68,25 @@ The `CLAUDECODE` env var is stripped before each subprocess call — this is int
 
 | Skill | Responsibility |
 |-------|----------------|
-| `devaing-init` | Bootstrap: repo, GitHub Project, CI, AGENTS.md, CONTEXT.md, `.devaing/skills/` portable layer, Phase 1 via devaing-phase-def |
+| `devaing-director` | Project state dashboard, health audit (CHECKPOINTS C1-C5), next step recommendation, thin orchestrator (invokes target skill on y/n) |
+| `devaing-init` | Bootstrap: repo, GitHub Project, CI, AGENTS.md, CONTEXT.md, CHECKPOINTS.md, `.devaing/skills/` portable layer, Phase 1 via devaing-phase-def |
 | `devaing-phase-def` | Full phase definition loop: discovery, epics, prototype, review, issue generation. Does not exit until issues are created. Blocks devaing-phase-revise while open. |
-| `devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Blocked until devaing-phase-def has generated issues. |
 | `devaing-work` | Implement issues on epic branches via sub-agent. Self-verify (tests + AC) and optional adversarial review before closing. Auto-merge epic to main when milestone closes. |
+| `devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Blocked until devaing-phase-def has generated issues. |
 | `devaing-ship` | Deploy main to prod: detect changes since last tag, run migrations/seeds, verify env vars, tag release, archive shipped phases to CONTEXT_ARCHIVE.md. |
 | `devaing-bug` | Convert a bug description into a structured issue with diagnosis and regression test criteria |
-| `devaing-status` | Dashboard: current phase state, per-epic progress, next command to run |
+| `devaing-help` | Static framework reference: what devaing is, all commands, typical flow |
 
 Phases are the scoping unit. Each phase runs a full discovery cycle before generating issues. Tracking is always GitHub Issues + GitHub Projects — no local file alternative.
+
+### Discovery convention
+
+Every `grill-me` call in any skill must be preceded by the model upgrade prompt and followed by the model downgrade prompt. This is non-negotiable — grill-me is expensive cognitive work and benefits materially from a more capable model. Skills that add grill-me in the future must follow the same pattern: upgrade → grill-me → downgrade.
+
+Both grill-me calls receive `<granularity>` and calibrate question depth accordingly: Broad = 3-5 questions, Balanced = 6-10, Detailed = go deep on every edge case.
+
+- `devaing-init`: asks a seed question (with up to 2 follow-up subquestions if vague), then upgrade → grill-me (with seed as context) → downgrade. Captures the product: what it is, who it's for, what problem it solves.
+- `devaing-phase-def`: upgrade covers backlog analysis + grill-me (single upgrade, positioned before the backlog cross-reference). Flow: upgrade → backlog cross-ref (Phase 2+) → backlog selection (Phase 2+) → phase intent open question → grill-me deepening that intent → downgrade. Captures the phase: what this increment accomplishes. grill-me uses phase intent + hypotheses derived from limitations and backlog — never asks from scratch.
 
 ### What lives where
 

@@ -15,7 +15,7 @@ Ship what's ready in dev to production, safely and in order.
 Read `CONTEXT.md` and `.devaing.md`. Extract:
 - Stack (framework, ORM, deploy target) from `## Architecture`
 - Project name from `## Project`
-- Current phase from `## Phases`
+- Current phase from `## Phases` — the row with the highest phase number. Store its phase number as `<phase-num>`.
 - `prod_url:` line from `.devaing.md` if present → store as `<prod-url>`
 - `prod_db_url:` line from `.devaing.md` if present → store as `<prod-db-url>`
 
@@ -41,6 +41,20 @@ Check its Status:
   Stop. Do not proceed to Step 1.
 
 - **Status = `Complete`**: proceed. Step 1 will distinguish between "first ship of this phase" (no tag) and "incremental ship" (tag exists + new commits since tag).
+
+## Step 0c — Merge phase branch to main
+
+Merge the phase integration branch into main so the deploy reflects the full phase:
+
+```bash
+git checkout main && git pull
+git merge phase-<phase-num> --no-ff -m "chore: merge phase-<phase-num> to main for ship"
+git push origin main
+git push origin --delete phase-<phase-num>
+git branch -d phase-<phase-num>
+```
+
+If the merge fails due to conflicts: stop and report the conflicting files. Do not proceed until conflicts are resolved.
 
 ## Step 1 — Determine last ship
 

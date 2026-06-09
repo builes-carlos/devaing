@@ -10,13 +10,14 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 
 | Skill | Purpose |
 |-------|---------|
-| `/devaing-init` | Bootstrap: repo, CI, CONTEXT.md, `.devaing/skills/` portable layer, Phase 1 via phase-def. For existing projects: RE scan + grill-me + dev env validation + seeds scaffold. |
+| `/devaing-init` | Bootstrap: repo, CI, CONTEXT.md, CHECKPOINTS.md, `.devaing/skills/` portable layer, Phase 1 via phase-def. For existing projects: RE scan + grill-me + dev env validation + seeds scaffold. |
 | `/devaing-phase-def` | Define a phase end-to-end: epics, prototype, review loop, issue generation. Generates seed migration issues for epics with reference data. |
 | `/devaing-phase-revise` | Adjust scope, prototype, or business logic during implementation. Reads ship tags to mark new issues as post-ship additions. |
 | `/devaing-work` | Implement GitHub issues on epic branches via sub-agent. Self-verify (tests + AC), optional adversarial review, auto-merge epic to main at close. Hotfix flow included. |
 | `/devaing-ship` | Ship to prod: first deploy (new or adopt existing), incremental deploys from git diff, ordered checklist, git tagging, archive shipped phases to CONTEXT_ARCHIVE.md. |
 | `/devaing-bug` | Bug in natural language → structured issue with diagnosis + regression test criteria → CONTEXT.md |
-| `/devaing-status` | Snapshot: current phase, per-epic progress, next task, exact command to run next. |
+| `/devaing-director` | Project state, health audit (CHECKPOINTS), next step recommendation, thin orchestrator. Invokes the next skill on y/n confirmation. |
+| `/devaing-help` | Static framework reference: what devaing is, all commands, typical flow. No project reads. |
 
 ## Key design decisions
 
@@ -24,13 +25,15 @@ A hyper-agile framework for building products with AI. Targets solo builders, de
 to-prd eliminated entirely. PRDs are expensive intermediaries nobody reads. Issues with acceptance criteria are the spec. ADRs capture non-obvious decisions after implementation.
 
 ### init owns "what is this product", phase-def owns "what we build in this phase"
-These two responsibilities are strictly separated. init is the only place that discovers or reverse-engineers the product. phase-def starts from CONTEXT.md as truth and only scopes the phase — it never re-asks what the project is.
+These two responsibilities are strictly separated but both use grill-me. init discovers or reverse-engineers the product and writes a populated CONTEXT.md. phase-def discovers each phase's scope — what problem this phase solves, for whom, and what's out of scope — and then generates issues.
 
-For greenfield projects, init runs an optional brainstorm (in memory, no file) followed by grill-me, then writes a populated CONTEXT.md before any infrastructure is set up. For existing projects, init does a RE scan + validation questionnaire + grill-me and writes CONTEXT.md from reality. In both cases, CONTEXT.md is fully populated before phase-def ever runs.
+For greenfield projects, init asks a seed question ("¿Qué hace esta app a alto nivel?") with up to 2 follow-up subquestions if the answer is vague, then upgrade → grill-me (seed as context) → downgrade → CONTEXT.md written before any infrastructure is set up. No brainstorm option — grill-me runs directly. For existing projects, init does a RE scan + validation questionnaire + upgrade → grill-me → downgrade, and writes CONTEXT.md from reality. In both cases, CONTEXT.md is fully populated before phase-def ever runs.
 
-phase-def never runs grill-me. It validates context (brief summary + "anything to correct?") and for Phase 2+ adds one question ("anything changed since last phase that affects scope?"). That's the entire discovery surface in phase-def.
+phase-def runs a grill-me focused on each phase's scope (always, including Phase 1). The model upgrade covers the entire discovery block: for Phase 2+, it's upgrade → backlog cross-reference → backlog selection → phase intent → grill-me → downgrade. For Phase 1, it's upgrade → phase intent → grill-me → downgrade. The phase intent step is an open question ("¿Qué querés que tenga Phase N?") with sub-prompts; the grill-me then deepens that answer using hypotheses derived from known limitations and the selected backlog. If the phase intent was vague, the grill-me leads with its own hypotheses — it never asks the user to repeat what they just said.
 
-This means the only human validations in the full flow are: brainstorm/grill-me in init, epic list approval, and the prototype review loop.
+Every grill-me in every skill is always preceded by the model upgrade prompt and followed by the model downgrade prompt. Both grill-me calls also receive `<granularity>` and calibrate question depth: Broad = 3-5 questions, Balanced = 6-10, Detailed = go deep. This is non-negotiable.
+
+This means the human validations in the full flow are: seed question + grill-me in init (product), phase intent + grill-me in phase-def (phase scope), backlog cross-reference (Phase 2+), epic list approval, and the prototype review loop.
 
 ### Milestones = epics
 GitHub milestones group issues by epic. Human navigates by milestone, not flat list.
@@ -105,6 +108,26 @@ Two rules enforced by devaing-work to prevent drift in the living sections:
 - `## Architecture`: always edited surgically (update existing sentences to reflect current state). Never appended to — appending creates an archaeology layer that agents read as contradictory truth.
 - `## Known limitations`: items are added after each issue close or adversarial review finding. At epic close, devaing-work reviews the list and asks whether any items were resolved by the epic. Resolved items are removed. This prevents the section from becoming a cemetery of past problems.
 
+### Director pattern (thin orchestrator)
+devaing-director replaces devaing-status with two additional responsibilities: health auditing and step execution.
+
+**What it adds over a plain status command:**
+1. Runs CHECKPOINTS mechanically on every invocation and surfaces violations.
+2. Asks "Execute now? [y/n]" after the report. On y, invokes the target skill via the `Skill` tool (Claude Code) or reads the target's `.devaing/skills/<name>.md` body (other LLMs).
+
+**Thin by design:** director does not duplicate skill logic. On y, it delegates to the target skill. The target skill re-reads state itself and runs its own flow. Director's only job is routing — this bounds its complexity and ensures each skill works standalone.
+
+**Portable path (non-Claude Code runtimes):**
+- Claude Code: `Skill(skill="devaing-work", args="#N")`
+- Other LLMs: `cat .devaing/skills/work.md | $SUBAGENT_CLI`
+
+### Health audit via CHECKPOINTS.md
+`CHECKPOINTS.md` is written by devaing-init at the project root and committed to git. It defines 5 objective health categories (C1-C5) that any judge — human or agent — can evaluate mechanically.
+
+devaing-director runs these checks on every invocation using gh CLI and git commands. Violations surface as warnings (`⚠ C3: 2 open issue(s) have no milestone`) alongside the normal status report. All clear surfaces as one line (`Health: ✓ all checks OK`).
+
+The file is human-readable for manual auditing when returning to a project after a long break, or before a release.
+
 ### Portability: thin adapter + body.md
 Each skill is split into two files:
 - `SKILL.md` — thin adapter (5-10 lines): reads `.devaing/skills/<name>.md` from the project, falls back to `body.md` in the same directory.
@@ -161,14 +184,14 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
 /devaing-init
   → working style questions (granularity, prototyper)
   → auth check
-  → product discovery: brainstorm optional (in memory) → grill-me → CONTEXT.md written
+  → product discovery: seed question (+ up to 2 follow-ups if vague) → upgrade → grill-me → downgrade → CONTEXT.md written
   → repo create/clone
   → GitHub Project created and linked to repo
   → triage labels, CI workflow, AGENTS.md, .devaing.md
   → .devaing/skills/ created + body.md files copied (portable layer)
   → .devaing/AGENTS.md written (Codex/Aider/Cursor instructions)
   → seeds infrastructure scaffold (_seed_migrations table, seeds runner)
-  → /devaing-phase-def called for Phase 1 (validates context only, no discovery)
+  → /devaing-phase-def called for Phase 1 (upgrade → phase intent → grill-me on phase scope → downgrade → epics → prototype → issues)
 ```
 
 **Existing project (code already present, no devaing setup):**
@@ -209,17 +232,25 @@ Context rot model: 0-30% peak quality, 50%+ rushes, 70%+ hallucinates. Context i
   → definition closed — /devaing-phase-revise now available
 ```
 
-### Check project status
+### Check project state and health
 ```
-/devaing-status
+/devaing-director
   → read CONTEXT.md + .devaing.md + GitHub issues
-  → output: phase, per-epic progress, next unblocked task
-  → output: exact command to run next
+  → run health audit: 5 checkpoint categories (C1-C5)
+  → output: phase, per-epic progress, health warnings, next unblocked task
+  → offer to execute next step [y/n] — invokes target skill via Skill tool on y
+```
+
+### Get framework help
+```
+/devaing-help
+  → static reference: what devaing is, 8 skills, typical flow
+  → no project files read
 ```
 
 ### Build loop
 ```
-human picks task (or uses /devaing-status to find it)
+human picks task (or uses /devaing-director to find it)
 → /devaing-work (no arg):
     → choice: One / All / Cascade / Hotfix
     → Hotfix: describe fix → sub-agent via subagent_cli → optional retroactive issue

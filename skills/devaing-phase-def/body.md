@@ -4,6 +4,9 @@ Define a phase completely: context validation → epics → prototype → review
 
 This command does not stop until the phase is fully defined (issues generated). Prototype revisions are handled inline — no need to jump to another command. Once issues are created, /devaing-phase-def blocks and /devaing-phase-revise becomes available.
 
+**Invariant — grill-me runs on every phase-def, always with model upgrade:**
+Every phase (including Phase 1 right after init) runs a grill-me focused on the scope of that phase. Before the grill-me, always show the model upgrade prompt and wait for response. After issues are generated, always show the model downgrade prompt. Never skip either prompt.
+
 ## Opening — Welcome message
 
 Output immediately, before reading any files:
@@ -17,10 +20,11 @@ Here's what's going to happen:
 
   1. Check current phase state
   2. Validate context
-  3. Define and approve the epics
-  4. Build the prototype
-  5. Review loop — adjust until satisfied
-  6. Generate tasks and close the definition
+  3. Phase discovery — understand what this phase should accomplish
+  4. Define and approve the epics
+  5. Build the prototype
+  6. Review loop — adjust until satisfied
+  7. Generate tasks and close the definition
 
 If you're re-running this command, it detects where you left off
 and picks up from there automatically.
@@ -109,30 +113,22 @@ Read `CONTEXT.md` completely. Read `docs/adr/` for recent decisions. If Phase 2+
 
 ## Step 3 — Validate context
 
-Show a brief summary and ask for corrections. Do not run grill-me — discovery is owned by `/devaing-init`.
+Show a brief summary and ask for corrections.
 
 Output:
 
 ```
-Context summary:
+Before the phase discovery, here's a snapshot of the product baseline.
+Correct anything outdated or missing — the grill-me will cover the rest.
 
 **Product**: <one sentence from ## Project>
 **Architecture**: <brief from ## Architecture>
 **Key constraints**: <brief from ## Key constraints>
 
-Anything to correct or add before we define the epics?
+Anything to correct or add?
 ```
 
 Wait for response. If corrections given, update the relevant sections of CONTEXT.md.
-
-**Phase 2+ only** — additionally ask:
-
-```
-Since Phase <N-1>, did anything change that affects scope?
-(new constraints, pivot, decisions made during implementation, new users or use cases)
-```
-
-Wait for response. If something changed, update CONTEXT.md accordingly.
 
 Continue to Step 4.
 
@@ -146,14 +142,101 @@ git commit -m "docs: update context before Phase <N> scoping"
 git push
 ```
 
+## Step 4b — Model upgrade
+
+Show this before any discovery work:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL UPGRADE RECOMMENDED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Phase discovery works better with a more capable model.    ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model — then come back and answer below.
+
+Did you switch to a more capable model?
+  y — yes, switched
+  n — no, continuing as-is
+```
+
+Wait for response. If `y`: set `<model_upgraded> = true`. If `n`: set `<model_upgraded> = false`.
+
+## Step 4c — Backlog cross-reference (Phase 2+ only)
+
+Skip entirely if this is Phase 1 or `CONTEXT.md ## Next phase backlog` has no entries for Phase <N>.
+
+For each backlog item, grep/read the relevant source files to assess current state: not started, partially built, or scaffolded. Present the analysis without asking a question yet:
+
+```
+Backlog items — cruzados con el código actual:
+
+- **<name>** — <description>. Estado: <not started / partially built / scaffolded>. <one line: what already exists or what's missing>.
+- **<name>** — ...
+```
+
+Continue to Step 4d.
+
+## Step 4d — Backlog selection (Phase 2+ only)
+
+Skip if Phase 1.
+
+Ask:
+
+```
+Which of these go into Phase <N>? Which stay in the backlog?
+```
+
+Wait for response. Store selected items as `<backlog-selection>`.
+
+## Step 4e — Phase intent
+
+Ask one open question. Include sub-prompts so the user knows what kind of answer is useful:
+
+```
+¿Qué querés que tenga Phase <N>? Describí a alto nivel.
+
+  — ¿Qué cambia para el usuario con esta fase?
+  — ¿Qué problema específico resuelve esta fase?
+```
+
+Wait for response. Store as `<phase-intent>`. Even a vague answer is valid — the grill-me will deepen it.
+
+## Step 4f — Phase discovery (grill-me)
+
+Before invoking grill-me, read:
+- `CONTEXT.md ## Known limitations` — problems consciously deferred
+- `CONTEXT.md ## Architecture` — current system shape
+- Closed issues from the previous phase (to know what was actually built, not just planned)
+
+Invoke `grill-me` with a hypothesis-rich prompt that deepens the phase intent. Do NOT ask the user to describe the phase from scratch. If `<phase-intent>` was vague, lead with your own hypotheses.
+
+Prompt:
+
+> "We're defining Phase <N> '<phase-name>' for <project>.
+>
+> Product state: <one-line from ## Project>
+> Built in Phase <N-1>: <brief summary of closed issues from previous phase>
+> Known limitations not yet fixed: <list from ## Known limitations, or 'none documented' if empty>
+> Taking from backlog: <backlog-selection, or 'nothing selected' if Phase 1 or empty>
+> Phase intent from the user: <phase-intent>
+>
+> Based on this, my hypotheses for what Phase <N> should accomplish: <2-3 specific hypotheses derived from the phase intent and the gaps above>
+>
+> Granularity: <granularity>. Calibrate depth: Broad = 3-5 questions on scope boundary and key user value. Balanced = 6-10 questions. Detailed = go deep on every scenario and edge case.
+>
+> If the phase intent was vague, use your hypotheses as the starting point — do not ask the user to repeat what they just said. Ask targeted questions to confirm or correct these hypotheses, identify what else should be in scope, and pin down what's explicitly out of scope."
+
+Run until the user signals done. Store as `<phase-discovery>`.
+
 ## Step 5 — Define epics for this phase
 
-Synthesize the epic list from the validated context + the annotated `## Next phase backlog` in CONTEXT.md. Do NOT re-interview.
+Synthesize the epic list from `<backlog-selection>` + `<phase-intent>` + `<phase-discovery>`. Do NOT re-interview.
 
 Present and wait for approval:
 
 ```
-Based on the context, I propose these epics for "<phase-name>":
+Based on the discovery and selected backlog, I propose these epics for "<phase-name>":
 
 1. **<name>** — <one sentence>
 2. **<name>** — <one sentence>
@@ -196,6 +279,14 @@ gh api repos/<owner>/<name>/milestones --method POST \
 git add CONTEXT.md
 git commit -m "docs: define Phase <N> epics"
 git push
+```
+
+5. Create the phase integration branch:
+
+```bash
+git checkout main && git pull
+git checkout -b phase-<N>
+git push -u origin phase-<N>
 ```
 
 ## Step 6 — Prototype
@@ -333,7 +424,14 @@ Wait for response.
 - Stitch: call the relevant `mcp__stitch__*` tool to regenerate the affected screens. Update `DESIGN.md` and `CONTEXT.md ## UX conventions`. Commit.
 - Other MCP: call `<prototyper_tool>` again with the epic name, the affected screen description, and the user's requested changes following `<prototyper_instructions>`. Update `CONTEXT.md ## UX conventions`. Commit.
 
-After adjustment, show the review loop output again.
+After adjustment, output before showing the loop again:
+
+```
+Changes since last review:
+- Screen "<name>" in epic "<epic>": <one sentence describing what changed>
+```
+
+Show the review loop output again.
 
 **If 2 (epic change):** Ask what to add, remove, or modify. Apply changes:
 - Update `CONTEXT.md ## Phases` epic list.
@@ -341,9 +439,25 @@ After adjustment, show the review loop output again.
 - If an epic was removed, note which prototype screens (if any) are now orphaned.
 - Commit.
 
-After adjustment, show the review loop output again.
+After adjustment, output before showing the loop again:
 
-**If 3 (business logic):** Ask what changed. Update `CONTEXT.md` (glossary, architecture, or constraints). Commit. Show the review loop output again.
+```
+Changes since last review:
+- Epic "<name>": <added / removed / renamed to "<new-name>" / scope changed: one sentence>
+```
+
+Show the review loop output again.
+
+**If 3 (business logic):** Ask what changed. Update `CONTEXT.md` (glossary, architecture, or constraints). Commit.
+
+Output before showing the loop again:
+
+```
+Changes since last review:
+- Business logic: <one sentence describing what was corrected>
+```
+
+Show the review loop output again.
 
 **If 4 (looks good):** Proceed to Step 7.
 
@@ -419,6 +533,24 @@ git add CONTEXT.md
 git commit -m "docs: generate Phase <N> issues (<granularity>)"
 git push
 ```
+
+## Step 7b — Model downgrade
+
+If `<model_upgraded>` is true:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║         MODEL DOWNGRADE SUGGESTED                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Phase defined. You can switch back to a lighter model.     ║
+╚══════════════════════════════════════════════════════════════╝
+
+To switch: /model
+
+Type 'continue' when ready.
+```
+
+Wait for response before showing the closing message.
 
 ## Closing
 

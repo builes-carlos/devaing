@@ -1,31 +1,201 @@
 # devaing
 
-A hyper-agile framework for building products with AI. Six Claude Code skills that take a project from blank repo to shipped features, one vertical slice at a time.
+Vibe coding fails the second time you sit down.
 
-Targets solo builders, dev pairs, and early-stage startups who want product fast without heavy process. Not Pocock (designed for large teams). Not vibe coding (no structure). The middle path.
+Not because the AI got worse. Because the context window filled up, you lost the thread, and now you're re-explaining the same architecture decisions from two sessions ago. The AI builds confidently — toward something slightly wrong.
 
----
+devaing is a discipline for building products with AI. Eight Claude Code skills that enforce one rule: **every piece of work is a self-contained GitHub issue with enough context for any agent to execute without re-explanation**. You validate what matters — the problem, the prototype, scope changes. The agent handles the rest.
 
-## Core insight
-
-GitHub Issues is not bureaucracy — it is a token rationalization system. Each issue is a self-contained unit of work with enough context for an agent to execute without re-explanation. This lets you:
-
-- Work granularly: one issue per session, fresh context every time
-- Share work: multiple agents consume issues in parallel
-- Maintain quality: acceptance criteria live where the work is tracked
+Targets solo builders, dev pairs, and early-stage startups. Not Pocock (designed for large teams). Not vibe coding (no structure). The middle path.
 
 ---
 
-## The framework at a glance
+## The core insight
 
-| Command | When to run | What it does |
-|---------|-------------|--------------|
-| `/devaing-init` | Once per project | Creates repo, CI, GitHub Project, AGENTS.md, CONTEXT.md. Kicks off Phase 1. |
-| `/devaing-status` | Anytime | Current phase, per-epic progress, next unblocked task, exact command to run. |
-| `/devaing-phase-def` | Start of each phase | Full definition loop: discovery, epics, prototype, review, issue generation. |
-| `/devaing-phase-revise` | During implementation | Adjust scope, prototype, or business logic. Add a net-new feature area. |
-| `/devaing-work` | Every build session | Implement the next task end-to-end. Shows dependency list if run with no argument. |
-| `/devaing-bug "..."` | When something breaks | Converts a plain-language description into a structured GitHub issue with diagnosis. |
+GitHub Issues is not bureaucracy. It is a **token rationalization system**.
+
+Each issue is a miniature spec that is always current because it is the thing you are working on right now. It contains the full context for one vertical slice: what to build, acceptance criteria, which epic it belongs to. The agent reads the issue, implements, reports back. No memory of previous sessions required.
+
+Three things prevent context rot:
+
+**1. Fresh sub-agent per issue.** Every issue is implemented by a sub-agent spawned with a clean context window. It receives a filtered CONTEXT.md (architecture, domain glossary, key constraints — not phase history) plus the full issue. Sub-agents run at 0-30% context fill — peak quality — on every issue, regardless of how long the phase has been running.
+
+**2. CONTEXT.md as the living truth.** One file at the project root, updated after every issue closes. Domain glossary, architecture decisions, key constraints, known limitations. Any session can pick up any issue without a briefing.
+
+**3. Human validation at the right moments only.** Discovery interview at the start of each phase. Prototype review before issues are generated. Scope changes through a structured question set. Everything else the agent executes without asking.
+
+---
+
+## The eight skills
+
+| Skill | When to run | What it does |
+|-------|-------------|--------------|
+| `/devaing-director` | Every session | Project state + health audit + next step recommendation. Type `y` to execute the recommended skill. Full workflow navigable from a single command. |
+| `/devaing-init` | Once per project | Creates repo, CI, GitHub Project, AGENTS.md, CONTEXT.md, CHECKPOINTS.md, seeds infrastructure. Kicks off Phase 1 via discovery interview. |
+| `/devaing-phase-def` | Start of each phase | Discovery, epics, prototype, review loop, issue generation. Does not close until issues are created. |
+| `/devaing-work` | Every build session | Claim an epic branch, implement via fresh sub-agent, self-verify AC + tests, optional adversarial review. Auto-merges epic to main on last issue. |
+| `/devaing-phase-revise` | During implementation | Adjust scope, prototype, or business logic. Add a net-new feature area mid-phase. |
+| `/devaing-ship` | Phase complete or hotfix ready | Deploy to prod: diff from last tag, ordered checklist (snapshot → migrations → seeds → code), git tag, archive shipped phases. |
+| `/devaing-bug "..."` | When something breaks | Bug description → structured GitHub issue with diagnosis and regression test criteria. |
+| `/devaing-help` | When disoriented | Framework reference: all 8 skills, typical flow, where to learn more. |
+
+---
+
+## Worked example
+
+### Init (once per project)
+
+```
+/devaing-init cta-autos
+```
+
+Asks two questions: granularity (Broad / Balanced / Detailed) and prototyper (Claude / Stitch / MCP). Then runs a product discovery session — optional brainstorm followed by a structured interview. Writes CONTEXT.md from the answers.
+
+Creates: GitHub repo, GitHub Project, triage labels, CI workflow, AGENTS.md, CHECKPOINTS.md, seeds infrastructure (`_seed_migrations` table + runner), and the portable `.devaing/skills/` layer.
+
+Ends by calling `/devaing-phase-def` for Phase 1.
+
+### Define a phase
+
+```
+/devaing-phase-def
+```
+
+Validates CONTEXT.md ("here's what I know — anything to correct?"), proposes epics for approval, builds prototype screens, enters a review loop. Adjust screens, epics, or business logic as many times as needed. On "looks good" → generates all issues in natural implementation order, creates GitHub milestones, adds issues to the Project board.
+
+Does not close until issues are created.
+
+### Build loop
+
+```
+/devaing-work #12
+```
+
+Per issue:
+
+1. Checks for an orphaned branch from a prior session (offers to resume instead of starting over)
+2. Reads `DESIGN.md` for design system tokens if it exists (Stitch output)
+3. Spawns a **fresh sub-agent** with filtered CONTEXT.md + full issue + relevant prototype screen
+4. Sub-agent commits to `epic/<slug>`, reports back
+5. Self-verification: runs test suite, checks each acceptance criterion (y/n/partial)
+6. If the diff touches migrations or seeds: `ce-data-integrity-guardian` reviews first
+7. Adversarial review: enabled by default on the last issue in an epic — reviews the full epic diff, constructs failure scenarios
+8. Updates CONTEXT.md, closes issue, moves Project card to Done
+9. If last issue in epic: auto-merges `epic/<slug>` to main, deletes branch
+10. If last issue in phase: compresses phase notes in CONTEXT.md
+
+### Deploy
+
+```
+/devaing-ship
+```
+
+Reads last ship tag (`git tag --list "ship/*"`). First deploy: provisions prod, runs migrations + seeds, sets env vars. Incremental: diffs from last tag — code only = quick deploy; migrations or seeds or env var changes = full ordered checklist with DB snapshot first.
+
+Tags the release (`ship/phase-1`), archives the phase to CONTEXT_ARCHIVE.md.
+
+### Navigate without remembering commands
+
+```
+/devaing-director
+```
+
+Shows: project state, health audit (C1-C5 CHECKPOINTS), next unblocked task, recommended command. Type `y` to execute immediately. Someone who has never used devaing can navigate an entire phase from this one command.
+
+---
+
+## Phase lifecycle
+
+Three skills move phase state. The other five operate within it.
+
+| State | Triggered by | `/devaing-phase-def` | `/devaing-phase-revise` |
+|-------|-------------|----------------------|-------------------------|
+| No active phase | `devaing-init` (first time) or `devaing-ship` (phase archived) | ✓ starts new phase | ✗ no active phase |
+| setup-interrupted | `devaing-phase-def` interrupted before prototype | ✓ resumes at prototype step | ✗ no issues yet |
+| prototype-pending | `devaing-phase-def` complete, prototype awaiting approval | ✓ resumes review loop | ✗ no issues yet |
+| implementing | `devaing-phase-def` generates issues and closes | ✗ definition closed | ✓ opens |
+| phase-complete | `devaing-work` closes last issue in phase | ✗ | ✓ add something before ship |
+
+`/devaing-phase-def` is available while no issues exist. The moment it generates issues, it closes — and `/devaing-phase-revise` opens. They never overlap.
+
+---
+
+## How it works
+
+### Epic branches + ownership lock
+
+Each GitHub milestone maps to a `epic/<slug>` branch. The first developer to claim an issue in the milestone becomes the owner — enforced via GitHub issue assignment. One person per epic eliminates merge conflicts within the epic while parallel work happens across epics (Dev A on `epic/auth`, Dev B on `epic/billing`).
+
+Branch lifecycle: created lazily on first issue claim. Auto-merged to main when the last issue closes. Deleted after merge.
+
+### Self-verification + adversarial review
+
+After each sub-agent commit, devaing-work:
+
+1. Detects and runs the project's test suite (`npm test` / `pytest` / `cargo test`)
+2. Reads each `- [ ]` acceptance criterion from the issue, asks for y/n/partial confirmation
+3. On the last issue in an epic: runs `ce-adversarial-reviewer` on the full epic diff — it constructs failure scenarios rather than pattern-matching against known issues. On failure: fix now (new sub-agent), document in Known limitations, or revert.
+
+For diffs touching migration or seed files: `ce-data-integrity-guardian` runs before adversarial review — checks migration safety, data constraints, transaction boundaries.
+
+### Health audit via CHECKPOINTS
+
+`CHECKPOINTS.md` is committed to the project root by `devaing-init`. Five categories evaluated mechanically by `/devaing-director` on every run:
+
+- **C1 — Setup integrity:** CONTEXT.md, .devaing.md, AGENTS.md, .devaing/skills/ all present
+- **C2 — Phase coherence:** at most one phase In Progress; no closed milestone with open issues
+- **C3 — Epic coherence:** no orphan issues (open issues without a milestone)
+- **C4 — Branch coherence:** prod branch exists; no rogue work commits on main
+- **C5 — Documentation coherence:** active phase has at least one open milestone
+
+All clear = one line. Violations = `⚠` warnings before the status report.
+
+### Prototype as living skeleton
+
+The prototype built in phase-def is not deleted after review. Each devaing-work slice replaces one mock screen with real implementation; all other screens stay intact as scaffolding. Screens must be stateless and presentational — no local state, no API calls — so each is independently replaceable without touching adjacent screens.
+
+When Stitch is used as the prototyper, it exports `DESIGN.md` (colors, typography, spacing, component patterns). devaing-work reads this before implementing any UI slice.
+
+### Production-grade deployment
+
+devaing-ship is the only path to prod. It derives everything from git state:
+
+- **Ship tags** (`ship/*`) mark every deploy. The diff from the last tag tells ship exactly what changed.
+- **Seed migrations** use a `_seed_migrations` table (same pattern as schema migrations) to track which reference data files have run. Never re-run, never manual.
+- **First deploy** has two paths: provision fresh prod, or adopt an existing one (establish baseline without re-running anything already live).
+
+### Multi-LLM portability
+
+devaing-init copies all skill execution bodies to `.devaing/skills/` in your project and writes `.devaing/AGENTS.md` with a routing table:
+
+```
+.devaing/skills/work.md
+.devaing/skills/phase-def.md
+.devaing/skills/ship.md
+.devaing/skills/director.md
+...
+```
+
+Codex, Aider, Cursor, or any agent that can read files can drive the full devaing workflow. The `subagent_cli:` field in `.devaing.md` (default: `claude -p --model claude-sonnet-4-6`) controls the sub-agent invocation command.
+
+---
+
+## What lands in your repo
+
+| File/Dir | Purpose |
+|----------|---------|
+| `CONTEXT.md` | Living truth: domain glossary, architecture, constraints, known limitations, phase state |
+| `CHECKPOINTS.md` | Objective health criteria. Director audits them on every run. Human-readable for manual audits. |
+| `.devaing.md` | Per-project config: granularity, prototyper, GitHub Project number, subagent_cli |
+| `AGENTS.md` | Agent execution conventions: issue tracker, triage labels, domain docs, workflow spec, guardrails |
+| `DESIGN.md` | Design system from Stitch: colors, typography, spacing, components (if using Stitch) |
+| `.devaing/skills/` | Portable skill bodies for Codex/Aider/Cursor and other LLM runtimes |
+| `.devaing/AGENTS.md` | Routing table for non-Claude Code runtimes |
+| `docs/adr/` | Architecture Decision Records, created by devaing-work for non-obvious decisions |
+| `docs/agents/` | Supporting agent docs: issue-tracker.md, triage-labels.md, domain.md |
+| `prisma/seeds/` (or `db/seeds/`) | Seed migration runner + `_seed_migrations` tracking table |
+| `.github/workflows/ci.yml` | CI pipeline created by init based on detected stack |
+| `CONTEXT_ARCHIVE.md` | Shipped phases moved here by devaing-ship (keeps CONTEXT.md lean across many phases) |
 
 ---
 
@@ -43,23 +213,25 @@ brew install gh
 
 # Windows
 winget install GitHub.cli
+
+# Linux — see cli.github.com/manual/installation
 ```
 
-Then authenticate:
+Authenticate:
 
 ```bash
 gh auth login
 ```
 
-**3. Compound Engineering plugin**
+**3. Compound Engineering plugin** (optional but recommended)
 
-Provides `ce-work` (implementation engine) and `ce-frontend-design` (UI quality layer), which devaing-work delegates to.
+Provides `ce-adversarial-reviewer` and `ce-data-integrity-guardian`, used by devaing-work for review passes. devaing-work runs without it — review falls back to an inline adversarial prompt.
 
 ```bash
 claude plugin install compound-engineering
 ```
 
-If that fails (plugin marketplace not yet configured):
+If that fails:
 
 ```bash
 claude plugin marketplace add EveryInc/compound-engineering-plugin
@@ -76,213 +248,44 @@ cd devaing
 bash install.sh
 ```
 
-Then restart Claude Code. The six `/devaing-*` commands will be available immediately.
+Restart Claude Code. The eight `/devaing-*` skills load immediately.
 
-### What the script does
-
-Copies each `skills/devaing-*/SKILL.md` into `~/.claude/skills/`. Claude Code loads skill files from that directory at session start. No build step, no dependencies.
+**What the script does:** copies each `skills/devaing-*/` folder (SKILL.md + body.md) into `~/.claude/skills/`. SKILL.md is the thin adapter Claude Code reads at session start. body.md is the portable execution body — used as fallback when a project's `.devaing/skills/` does not have a local override.
 
 ---
 
-## Typical session flow
+## Design decisions
 
-### Starting a new project
+**No PRDs.** PRDs are expensive intermediaries nobody reads. Issues with acceptance criteria are the spec. ADRs capture non-obvious decisions after implementation, when the actual tradeoffs are known — not before, when they are speculation.
 
-```
-/devaing-init my-project
-```
+**Milestones are epics.** GitHub milestones group issues by epic. You navigate by milestone, not by flat issue list. Flat lists do not scale past 20 issues.
 
-This runs once. It creates or clones the repo, sets up AGENTS.md and CONTEXT.md, creates a GitHub Project, installs CI, and immediately calls `/devaing-phase-def` to kick off Phase 1.
+**Phases scope what gets built.** Each phase runs a full discovery cycle before generating issues. Future phases are defined when their phase starts, not upfront. Speculative backlogs rot before they are worked.
 
-### Defining a phase
+**Human validation at the right moments only.** Three gates in the full flow: the discovery interview, the epic list approval, and the prototype review. Everything else the agent executes without asking.
 
-```
-/devaing-phase-def
-```
+**Adversarial review, not pattern-matching.** The code reviewer constructs failure scenarios — what would break this, what edge case was missed — rather than checking against a known list of anti-patterns. It reviews the full epic diff at close, not just the last commit.
 
-Runs a full discovery session (deep interview for Phase 1, targeted questions for Phase 2+), proposes epics for approval, builds a prototype, and enters a review loop. The review loop runs as many times as needed — adjust screens, epics, or business logic inline. When you confirm "looks good," it generates all issues and registers dependencies in GitHub. The command does not close until issues are created.
-
-### Checking where you stand
-
-```
-/devaing-status
-```
-
-Reads CONTEXT.md and GitHub Issues and shows: current phase, progress per epic, the next unblocked task, and the exact command to run next. Use this after returning to a project or before starting a session.
-
-### Building
-
-```
-/devaing-work
-```
-
-With no argument, fetches all open issues, classifies them as READY or BLOCKED based on `## Blocked by` in each issue body, and presents a grouped list. You choose how many to implement:
-
-1. **One** — pick a specific issue number
-2. **All ready now** — implement all currently unblocked issues in sequence
-3. **Cascade** — implement READY issues, automatically re-evaluate what's now unblocked after each batch, repeat until the phase is empty or a batch makes no progress
-
-For a single issue:
-
-```
-/devaing-work #12
-```
-
-For a milestone by name:
-
-```
-/devaing-work "User Auth"
-```
-
-What happens per issue:
-
-1. Mid-flight check: looks for an existing branch with unmerged commits (session recovery)
-2. Context budget check: warns if the current session is already loaded
-3. Reads DESIGN.md for design tokens if it exists
-4. Routes to `ce-frontend-design` first for UI issues (then `ce-work` for backend/tests), or directly to `ce-work` for non-UI issues
-5. After merge: updates CONTEXT.md with new domain knowledge, asks about ADRs and known limitations
-6. Closes the issue, moves the GitHub Project card to Done
-7. If this was the last issue in a milestone: compresses that milestone's notes in CONTEXT.md
-8. If this was the last issue in the phase: prompts for QA and architecture review
-
-### Reporting a bug
-
-```
-/devaing-bug "the user list shows deleted accounts"
-```
-
-Reads CONTEXT.md, investigates the relevant code, identifies the probable cause, and creates a structured GitHub issue with observed behavior, expected behavior, root cause, proposed fix, and acceptance criteria. If the cause is not obvious, runs `/diagnose` first.
-
-### Adjusting scope mid-phase
-
-```
-/devaing-phase-revise
-```
-
-Available once a phase has issues. Options: correct existing issues, adjust the prototype, update business logic, or add a net-new feature area (triggers a focused 4-question discovery session and generates new issues directly).
+**Known limitations are first-class.** CONTEXT.md has a `## Known limitations` section — distinct from ADRs and constraints. Problems we know about and are not fixing yet: what the problem is, why it is deferred, what would trigger the fix. devaing-work prompts for this at every issue close.
 
 ---
 
-## CONTEXT.md: the living document
+## What devaing is NOT
 
-Every operation that changes what is built updates CONTEXT.md. It is the single source of truth that agents read before working and that you read to understand the current state of the product.
-
-Sections:
-
-| Section | Contents |
-|---------|----------|
-| `## Project` | One-sentence description |
-| `## Domain glossary` | Terms with definitions, updated as new concepts emerge |
-| `## Architecture` | Components and how they interact, updated as structure changes |
-| `## Key constraints` | Non-negotiable limits (technical, legal, business) |
-| `## Known limitations` | Problems consciously deferred: what, why, what would trigger the fix, operational guidance |
-| `## UX conventions` | Design decisions from prototype review: layout patterns, interaction models, component rules |
-| `## Phases` | Status table: phase number, name, status (In Progress / Complete), epics |
-| `## Next phase backlog` | Epics identified but deferred to future phases |
-
-### Context compression
-
-When a milestone closes, its slice-by-slice notes are replaced with a 3-line summary block:
-- What was built (interfaces exposed, components added)
-- Decisions (links to ADRs, or one-line summary)
-- Known limitations introduced (or "none")
-
-This prevents context rot as the document grows across many milestones.
-
----
-
-## Prototype as living skeleton
-
-When a phase is defined, a prototype is built for each epic that has UI. The prototype is not deleted after the review loop. It survives as a navigation skeleton: mock screens are replaced progressively by `/devaing-work` slices. All other screens stay intact as scaffolding.
-
-Prototype screens must be stateless and presentational: no local state, no API calls, no hardcoded data beyond display fixtures. This keeps each screen independently replaceable without touching adjacent screens.
-
-### Prototyper options
-
-Set in `.devaing.md` as `prototyper: Claude | Stitch | Other MCP`:
-
-| Option | Description |
-|--------|-------------|
-| Claude | Uses the built-in `prototype` skill. No external accounts needed. |
-| Stitch | Google Stitch via MCP (`https://stitch.googleapis.com/mcp`). Higher visual quality. Exports `DESIGN.md` to the project root. Requires `STITCH_API_KEY` in `~/.claude/settings.json`. |
-| Other MCP | Any MCP tool already configured. Provide the tool name and a brief description of what it expects and returns. |
-
-When Stitch is used, `DESIGN.md` contains the full design system (colors, typography, spacing, component patterns). `/devaing-work` reads this before implementing any UI slice to ensure the code matches the approved visual design.
-
----
-
-## Issue format
-
-Every issue has three required sections:
-
-```markdown
-## What to build
-
-<end-to-end behavior, not layer-by-layer. No file paths.>
-
-## Acceptance criteria
-
-- [ ] <criterion>
-
-## Blocked by
-
-<#N or "None - can start immediately">
-```
-
-The `## Blocked by` section is what `/devaing-work` and `/devaing-status` use to classify issues as READY or BLOCKED. A task is READY when no referenced issue numbers are still open.
-
-Dependencies are also registered via the GitHub Issues native dependency API so blockers are visible in the issue sidebar and the GitHub Project board.
-
----
-
-## Phase state detection
-
-`/devaing-phase-def` detects the current setup state at every invocation, enabling safe re-entry after interrupted sessions:
-
-| UX conventions in CONTEXT.md | Open issues exist | State | Action |
-|---|---|---|---|
-| No | No | Interrupted before prototype | Resume at prototype step |
-| Yes | No | Prototype built, review in progress | Resume review loop |
-| — | Yes | Definition closed — active phase | Block, show available commands |
-
----
-
-## Project file reference
-
-| File | Purpose |
-|------|---------|
-| `CONTEXT.md` | Single source of truth for domain knowledge, architecture, constraints, and phase state |
-| `.devaing.md` | Per-project config: tracking system, granularity, prototyper, GitHub Project number |
-| `AGENTS.md` | Agent execution conventions for this repo (issue tracker, labels, domain docs, review rules) |
-| `DESIGN.md` | Design system exported by Stitch (colors, typography, spacing, components). Read by devaing-work before UI implementation. |
-| `docs/adr/` | Architecture Decision Records, created by devaing-work when non-obvious decisions are made |
-| `docs/agents/` | Supporting docs for agents: issue-tracker.md, triage-labels.md, domain.md |
-| `.github/workflows/ci.yml` | CI pipeline created by devaing-init based on detected stack |
-
----
-
-## External skill dependencies
-
-devaing integrates these third-party skills without modifying them:
-
-| Skill | Source | Used by | Purpose |
-|-------|--------|---------|---------|
-| `ce-work` | Compound Engineering plugin | `devaing-work` | Full implementation engine: branch, TDD, commits, PR, code review, CI, merge |
-| `ce-frontend-design` | Compound Engineering plugin | `devaing-work` | UI implementation with design quality: detects design system, visual thesis, screenshot verification |
-| `grill-me` | Compound Engineering plugin | `devaing-phase-def` | Deep discovery interview for Phase 1 |
-| `prototype` | Claude Code built-in | `devaing-phase-def` | Stateless mock screens for UX validation |
-| `diagnose` | Claude Code built-in | `devaing-bug` | Root cause analysis for bugs where the cause is not obvious |
-| `improve-codebase-architecture` | Claude Code built-in | `devaing-work` | Suggested at phase close (every 2-3 milestones) |
+- Not a replacement for Pocock or Compound Engineering in large teams
+- Not a way to skip thinking (the discovery interview is mandatory and expensive — that is the investment)
+- Not Jira (Jira is for human communication, outside the framework)
+- Not vibe coding with structure added on top (the structure is intentional and non-negotiable)
 
 ---
 
 ## Development toolkit
 
-The `scripts/` directory contains tools for validating and improving the trigger descriptions of any Claude Code skill. These are useful when modifying the devaing skills or building new ones.
+The `scripts/` directory contains tools for validating and optimizing the trigger descriptions of any Claude Code skill. Useful when modifying devaing skills or building your own.
 
 ### Validate a skill
 
-Checks frontmatter: required fields, allowed fields, kebab-case name, max 64 chars name, max 1024 chars description.
+Checks frontmatter: required fields, allowed fields, kebab-case name, max 64-char name, max 1024-char description.
 
 ```bash
 python -m scripts.quick_validate skills/<skill-name>
@@ -319,7 +322,7 @@ Eval set format:
 
 ### Run the optimize loop
 
-Iteratively improves the skill description to maximize trigger accuracy. Uses a train/holdout split. Opens a live HTML report in the browser.
+Iteratively improves the skill's trigger description to maximize invocation accuracy on a held-out query set. Opens a live HTML report in the browser.
 
 ```bash
 python -m scripts.run_loop \
@@ -333,33 +336,8 @@ Key flags: `--max-iterations 5`, `--runs-per-query 3`, `--holdout 0.4`, `--resul
 
 ### Aggregate benchmark results
 
-Reads `grading.json` files from `eval-N/with_skill/run-N/` and `eval-N/without_skill/run-N/` subdirectories. Writes `benchmark.json` and `benchmark.md`.
+Reads `grading.json` files from run_eval output and writes `benchmark.json` and `benchmark.md`.
 
 ```bash
 python -m scripts.aggregate_benchmark <benchmark_dir>
 ```
-
----
-
-## Design decisions
-
-**No PRDs.** PRDs are expensive intermediaries nobody reads. Issues with acceptance criteria are the spec. ADRs capture non-obvious decisions after implementation, when the actual tradeoffs are known.
-
-**No quiz loops during execution.** Only two human validations in the setup flow: the discovery interview and the epic list approval. Everything else the agent executes without asking.
-
-**Milestones are epics.** GitHub milestones group issues by epic. You navigate by milestone, not by flat issue list.
-
-**Phases scope what gets built.** Each phase runs a full discovery cycle before generating issues. Future phases are defined when their phase starts, not upfront. This prevents speculative backlog that becomes stale before it's worked.
-
-**Context budget is explicit.** Context quality degrades predictably: peak at 0-30%, the model rushes at 50%, hallucinates at 70%. devaing-work warns before dispatching to ce-work if the session is already loaded and suggests a fresh session after each closed slice.
-
-**Session recovery.** If a devaing-work session dies mid-slice (context full, crash, closed window), the next invocation detects the orphaned branch and offers to resume instead of starting over.
-
----
-
-## What devaing is NOT
-
-- Not a replacement for Pocock or Compound Engineering in large teams
-- Not a way to skip thinking (the discovery interview is mandatory and expensive — that is the investment)
-- Not Jira (Jira is for human communication, outside the framework)
-- Not vibe coding (structure is intentional, not optional)
