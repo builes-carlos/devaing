@@ -9,6 +9,24 @@ description: Initialize a new devaing project OR show current status if already 
 
 **Step A.** Use the Read tool to read `CONTEXT.md` if it exists. Do not output any text yet.
 
+**Step A2 — Legacy pending sweep (mandatory, every run).** Before evaluating CONTEXT.md, check whether pending work is sitting in other agent-context files and never made it into the single source of truth.
+
+```bash
+for f in CLAUDE.md CLAUDE.local.md AGENTS.md; do
+  [ -f "$f" ] && echo "found: $f"
+done
+```
+
+For each file found, read it and extract pending items: `TODO`/`FIXME`/`PENDING`/"pendiente" markers, entries under a "Known limitations"/"Limitaciones conocidas" or "Next phase backlog"/"Backlog"/"Roadmap" section that are not marked done, unchecked `- [ ]` checkboxes, and phrases like "falta", "por hacer", "temporal", "deuda técnica", "deferred", "not yet implemented". Do not count anything already marked complete/done/resolved.
+
+Compare each extracted item against `CONTEXT.md`'s `## Known limitations` and `## Next phase backlog` sections (if it exists and is populated). An item is **orphaned** if it does not already appear there, even paraphrased.
+
+Store the orphaned list as `<orphaned-pendings>` (empty if none, or if none of the three files exist).
+
+**What happens to `<orphaned-pendings>` depends on the path taken below:**
+- Paths that write CONTEXT.md fresh (Step 1b, RE-scan-3, Step 7): fold `<orphaned-pendings>` directly into that write's `## Known limitations` / `## Next phase backlog` sections. Do not lose them.
+- Path where CONTEXT.md is already populated and devaing is already initialized (Step C): do not silently proceed if `<orphaned-pendings>` is non-empty — see the added sub-step inside Step C below.
+
 **Step B — Content evaluation.** Determine the quality of CONTEXT.md:
 
 CONTEXT.md is **populated** when ALL of these hold:
@@ -58,6 +76,25 @@ for skill in work phase-def phase-revise ship bug help director; do
     cp "$SKILL_DIR/devaing-$skill/body.md" ".devaing/skills/$skill.md" 2>/dev/null || true
 done
 ```
+
+1b. **Orphaned pendings gate.** If `<orphaned-pendings>` from Step A2 is non-empty, do not proceed silently:
+
+```
+⚠️  Pendientes encontrados fuera de CONTEXT.md (en <file list from Step A2>):
+
+  - [origen: <file>] <pending item>
+  - [origen: <file>] <pending item>
+  ...
+
+Estos no están reflejados en CONTEXT.md ## Known limitations / ## Next phase backlog.
+
+  1. Migrar ahora a CONTEXT.md
+  2. Ignorar (ya se manejan en otro lado — issues, memoria, etc.)
+```
+
+Wait for response. If `1`: edit CONTEXT.md surgically to add each item to the appropriate section (Known limitations for bugs/deferred problems, Next phase backlog for deferred features), then commit: `git add CONTEXT.md && git commit -m "docs: migrate orphaned pendings into CONTEXT.md"`. If `2`: continue without modifying CONTEXT.md, but include "N pendientes legacy detectados, no migrados por decisión del usuario" in the output below.
+
+If `<orphaned-pendings>` is empty, skip this sub-step entirely — do not mention it.
 
 2. Run `gh issue list --state open --json number,title,milestone --jq '.[] | "#\(.number) [\(.milestone.title)] \(.title)"'` to get open issues grouped by milestone.
 3. Output the message below. Do not continue past this point.
@@ -332,6 +369,8 @@ Write CONTEXT.md immediately from discovery (do not leave it blank):
 > Problems we are aware of and consciously not fixing yet.
 > Format: what the problem is | why it's deferred | what would trigger the fix | operational guidance for the current state.
 
+<if `<orphaned-pendings>` from Step A2 is non-empty, add one row per item here, phrased as: what the problem is | why it's deferred (best guess from source file, or "carried over from <file>, reason not specified") | what would trigger the fix | operational guidance>
+
 ## Phases
 
 | Phase | Name | Status | Epics |
@@ -341,6 +380,8 @@ Write CONTEXT.md immediately from discovery (do not leave it blank):
 
 > Epics identified but deferred to future phases.
 > Format: Phase N — Epic name — one-line description
+
+<if `<orphaned-pendings>` includes deferred features/epics rather than bugs/limitations, list them here instead, in this format>
 ```
 
 Store flag `<context_written> = true` so Step 7 skips rewriting CONTEXT.md.
@@ -491,6 +532,8 @@ Write `CONTEXT.md` at the project root, combining RE findings, corrections, and 
 > Problems we are aware of and consciously not fixing yet.
 > Format: what the problem is | why it's deferred | what would trigger the fix | operational guidance for the current state.
 
+<if `<orphaned-pendings>` from Step A2 is non-empty, add one row per item here — this is the primary place legacy CLAUDE.md/AGENTS.md pendings land, since RE-scan runs on projects most likely to have accumulated them. Phrase each as: what the problem is | why it's deferred (best guess from source file, or "carried over from <file>, reason not specified") | what would trigger the fix | operational guidance>
+
 ## Phases
 
 | Phase | Name | Status | Epics |
@@ -501,6 +544,8 @@ Write `CONTEXT.md` at the project root, combining RE findings, corrections, and 
 
 > Epics identified but deferred to future phases.
 > Format: Phase N — Epic name — one-line description
+
+<if `<orphaned-pendings>` includes deferred features/epics rather than bugs/limitations, list them here instead, in this format>
 ```
 
 After writing CONTEXT.md, also update `CLAUDE.md` if it exists:
@@ -859,6 +904,8 @@ Otherwise write the blank template:
 > Problems we are aware of and consciously not fixing yet.
 > Format: what the problem is | why it's deferred | what would trigger the fix | operational guidance for the current state.
 
+<if `<orphaned-pendings>` from Step A2 is non-empty, add one row per item here, same format as elsewhere>
+
 ## Phases
 
 | Phase | Name | Status | Epics |
@@ -868,6 +915,8 @@ Otherwise write the blank template:
 
 > Epics identified but deferred to future phases.
 > Format: Phase N — Epic name — one-line description
+
+<if `<orphaned-pendings>` includes deferred features/epics, list them here instead>
 ```
 
 ## Step 7b — .devaing.md
@@ -1216,6 +1265,7 @@ This branch is only ever updated by `devaing-ship`. `devaing-work` merges to `<b
 | Compound Engineering | installed / already installed / manual required |
 | ci.yml | created / already existed |
 | CONTEXT.md | created from RE scan / created blank / already existed |
+| Legacy pendings (Step A2) | N found and migrated / N found, ignored by choice / none found |
 | CHECKPOINTS.md | created / already existed |
 | .devaing.md | created / already existed |
 | Operational skills | N created / skipped |
